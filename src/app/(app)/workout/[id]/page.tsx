@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Check, ChevronRight, Clock3, Dumbbell, ListChecks, Minus, Plus, TimerReset } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getLastWorkoutSet, getWorkoutSession, recordWorkoutSet } from "@/services/workout-service";
+import { getLastWorkoutSet, getWorkoutPlans, getWorkoutSession, recordWorkoutSet, startWorkout } from "@/services/workout-service";
 import type { WorkoutSessionRecord, WorkoutSessionExerciseRecord } from "@/types";
 import { Badge, IconButton } from "@/components/ui";
 
@@ -20,7 +20,7 @@ export default function WorkoutPage() {
   const [last, setLast] = useState<string>("暂无上次记录");
   const [showList, setShowList] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { void getWorkoutSession(params.id).then(setSession).catch(reason => setError(reason instanceof Error ? reason.message : "训练加载失败")); }, [params.id]);
+  useEffect(() => { void getWorkoutSession(params.id).then(setSession).catch(async reason => { if (params.id.startsWith("push-")) { try { const plan = (await getWorkoutPlans())[0]; const day = plan?.days.find(item => item.dayCode === "push") ?? plan?.days.find(item => !item.isRestDay); if (plan && day) { const created = await startWorkout({ recordDate: new Date().toISOString().slice(0, 10), planId: plan.id, planDayId: day.id }); router.replace(`/workout/${created.id}`); return; } } catch (fallbackReason) { setError(fallbackReason instanceof Error ? fallbackReason.message : "训练启动失败"); return; } } setError(reason instanceof Error ? reason.message : "训练加载失败"); }); }, [params.id, router]);
   const exercise = session?.exercises[exerciseIndex];
   useEffect(() => {
     if (!exercise) return;
