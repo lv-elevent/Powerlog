@@ -55,10 +55,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppStateValue>(() => ({
     water, expenses, body, meals, nutritionGoal, workout, notes, backendError, reload: refreshBackendState,
-    addWater: async amount => { await addWaterLog({ date, amountMl: amount }); await refreshBackendState(); },
-    addExpense: async expense => { await persistExpense({ date, amount: expense.amount, categoryName: expense.category, note: expense.note }); await refreshBackendState(); },
-    addBody: async next => { await saveBodyMeasurement({ date, weightKg: next.weight, measuredAt: new Date().toISOString() }); await refreshBackendState(); },
-    addNote: async text => { await addDailyNote({ date, text }); await refreshBackendState(); },
+    addWater: async amount => { const result = await addWaterLog({ date, amountMl: amount }); if (!result) { setWater(current => current + amount); return; } await refreshBackendState(); },
+    addExpense: async expense => { const result = await persistExpense({ date, amount: expense.amount, categoryName: expense.category, note: expense.note }); if (!result) { setExpenses(current => [...current, { ...expense, id: `offline-${crypto.randomUUID()}`, time: new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) }]); return; } await refreshBackendState(); },
+    addBody: async next => { const result = await saveBodyMeasurement({ date, weightKg: next.weight, measuredAt: new Date().toISOString() }); if (!result) { setBody(next); return; } await refreshBackendState(); },
+    addNote: async text => { const result = await addDailyNote({ date, text }); if (!result) { setNotes(current => [...current, text]); return; } await refreshBackendState(); },
   }), [water, expenses, body, meals, nutritionGoal, workout, notes, backendError, date, refreshBackendState]);
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }

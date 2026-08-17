@@ -39,8 +39,8 @@ export default function WorkoutPage() {
     setError("");
     try {
       const nextSetNumber = Math.max(0, ...exercise.sets.map(set => set.setNumber)) + 1;
-      await recordWorkoutSet(session.id, { sessionExerciseId: exercise.id, setNumber: nextSetNumber, setType: "working", weightKg: weight, reps, rir });
-      setSession(await getWorkoutSession(session.id));
+      const recorded = await recordWorkoutSet(session.id, { sessionExerciseId: exercise.id, setNumber: nextSetNumber, setType: "working", weightKg: weight, reps, rir });
+      if (recorded) setSession(await getWorkoutSession(session.id));
       setRest(exercise.restSecondsSnapshot ?? 90);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "训练组保存失败"); }
   };

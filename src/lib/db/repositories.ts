@@ -33,6 +33,7 @@ export interface BodyMeasurementRow {
   thigh_cm: number | null;
   hip_cm: number | null;
   note: string | null;
+  client_idempotency_key: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -368,7 +369,7 @@ export async function listWaterLogs(recordDate: string): Promise<WaterLogRow[]> 
   return unwrap(await getSupabaseAdmin().from("water_logs").select("*").eq("record_date", recordDate).order("logged_at", { ascending: true })) as WaterLogRow[];
 }
 
-export async function upsertBodyMeasurement(input: { record_date: string; measured_at: string; weight_kg: number; waist_cm?: number | null; note?: string | null }): Promise<BodyMeasurementRow> {
+export async function upsertBodyMeasurement(input: { record_date: string; measured_at: string; weight_kg: number; waist_cm?: number | null; note?: string | null; client_idempotency_key?: string | null }): Promise<BodyMeasurementRow> {
   return unwrap(await getSupabaseAdmin().from("body_measurements").upsert(input, { onConflict: "record_date" }).select("*").single());
 }
 
