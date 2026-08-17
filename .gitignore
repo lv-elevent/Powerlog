@@ -1,0 +1,8 @@
+node_modules/
+.next/
+.env*
+!.env.example
+*.tsbuildinfo
+.chrome-debug-profile/
+chrome-cdp-profile*/
+npm-debug.log*

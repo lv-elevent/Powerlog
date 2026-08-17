@@ -1,0 +1,31 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "scrollWidth": 390
+  },
+  "interaction": {
+    "pinRoute": "/today",
+    "routeHasNo404": true,
+    "quickAddVisible": true,
+    "quickAddOpen": true,
+    "waterSheetOpen": true,
+    "waterRecorded": true,
+    "expenseSheetOpen": true,
+    "expenseSaved": true,
+    "bodySheetOpen": true,
+    "bodySaved": true,
+    "quickMealRoute": "/nutrition/add",
+    "foodSearch": true,
+    "foodSelected": true,
+    "mealAddRoute": "/nutrition",
+    "restTimerVisible": true,
+    "restSkip": true,
+    "workoutCompleteRoute": "/today",
+    "historyRoute": "/history/2026-08-18",
+    "insightsNutrition": true,
+    "meDetailRoute": "/me/profile",
+    "reviewCompleted": true
+  },
+  "runtimeErrors": []
+}
