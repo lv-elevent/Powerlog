@@ -3,6 +3,7 @@ node_modules/
 .env*
 !.env.example
 *.tsbuildinfo
+.npm-cache/
 .chrome-debug-profile/
 chrome-cdp-profile*/
 npm-debug.log*
