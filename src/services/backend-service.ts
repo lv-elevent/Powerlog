@@ -1,4 +1,4 @@
-import type { BodyMeasurementRow, DailyLogRow, DailyNoteRow, DailyNutritionRow, ExpenseCategoryRow, ExpenseRow, FoodLibraryRow, MealItemRow, MealRow, MealTemplateItemRow, MealTemplateRow, MealTotalRow, NutritionGoalRow, WaterLogRow } from "@/lib/db/repositories";
+import type { BodyMeasurementRow, DailyLogRow, DailyNoteRow, DailyNutritionRow, ExpenseCategoryRow, ExpenseRow, FoodLibraryRow, MealItemRow, MealRow, MealTemplateItemRow, MealTemplateRow, MealTotalRow, NutritionGoalRow, WaterLogRow, WorkoutSessionGraph } from "@/lib/db/repositories";
 
 export interface BackendDayData {
   date: string;
@@ -9,6 +9,7 @@ export interface BackendDayData {
   notes: DailyNoteRow[];
   nutrition: { totals: DailyNutritionRow | null; meals: Array<{ meal: MealRow; items: MealItemRow[]; total: MealTotalRow | null }> };
   nutritionGoal: NutritionGoalRow | null;
+  workouts: WorkoutSessionGraph[];
 }
 
 export interface NutritionData {

@@ -12,6 +12,7 @@ interface AppStateValue {
   body: BodyMeasurement;
   meals: Meal[];
   nutritionGoal: NutritionGoal;
+  workout: { count: number; minutes: number };
   notes: string[];
   backendError: string | null;
   reload: () => Promise<void>;
@@ -28,6 +29,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [body, setBody] = useState<BodyMeasurement>({ weight: mockToday.weight, time: "07:05" });
   const [meals, setMeals] = useState<Meal[]>([]);
   const [nutritionGoal, setNutritionGoal] = useState<NutritionGoal>(mockToday.goal);
+  const [workout, setWorkout] = useState({ count: 0, minutes: 0 });
   const [notes, setNotes] = useState<string[]>([]);
   const [backendError, setBackendError] = useState<string | null>(null);
   const date = currentRecordDate();
@@ -40,6 +42,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (data.body) setBody({ weight: Number(data.body.weight_kg ?? 0), time: data.body.measured_at ? new Date(data.body.measured_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "" });
       setNotes(data.notes.map(item => item.text));
       setMeals(data.nutrition.meals.map(mapMeal).map(mapMealToUi));
+      setWorkout({ count: data.workouts.length, minutes: data.workouts.reduce((sum, item) => sum + Number(item.session.duration_minutes ?? 0), 0) });
       const goal = mapGoal(data.nutritionGoal);
       if (goal) setNutritionGoal({ calories: goal.calories, protein: goal.protein, carbs: goal.carbs, fat: goal.fat, fiber: goal.fiber, water: goal.water });
       setBackendError(null);
@@ -51,12 +54,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { void refreshBackendState(); }, [refreshBackendState]);
 
   const value = useMemo<AppStateValue>(() => ({
-    water, expenses, body, meals, nutritionGoal, notes, backendError, reload: refreshBackendState,
+    water, expenses, body, meals, nutritionGoal, workout, notes, backendError, reload: refreshBackendState,
     addWater: async amount => { await addWaterLog({ date, amountMl: amount }); await refreshBackendState(); },
     addExpense: async expense => { await persistExpense({ date, amount: expense.amount, categoryName: expense.category, note: expense.note }); await refreshBackendState(); },
     addBody: async next => { await saveBodyMeasurement({ date, weightKg: next.weight, measuredAt: new Date().toISOString() }); await refreshBackendState(); },
     addNote: async text => { await addDailyNote({ date, text }); await refreshBackendState(); },
-  }), [water, expenses, body, meals, nutritionGoal, notes, backendError, date, refreshBackendState]);
+  }), [water, expenses, body, meals, nutritionGoal, workout, notes, backendError, date, refreshBackendState]);
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 export function useAppState() { const value = useContext(AppStateContext); if (!value) throw new Error("useAppState must be used inside AppStateProvider"); return value; }

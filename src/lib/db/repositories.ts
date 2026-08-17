@@ -212,6 +212,123 @@ export interface NutritionTemplateItemInput {
   sort_order: number;
 }
 
+export interface ExerciseLibraryRow {
+  id: string;
+  name: string;
+  category: string;
+  primary_muscle: string | null;
+  equipment: string | null;
+  default_rest_seconds: number | null;
+  is_active: boolean;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkoutPlanRow {
+  id: string;
+  name: string;
+  version: string;
+  is_active: boolean;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkoutPlanDayRow {
+  id: string;
+  plan_id: string;
+  day_code: string;
+  name: string;
+  sort_order: number;
+  estimated_minutes: number | null;
+  is_rest_day: boolean;
+  note: string | null;
+}
+
+export interface WorkoutPlanExerciseRow {
+  id: string;
+  plan_day_id: string;
+  exercise_id: string;
+  sort_order: number;
+  target_sets: number;
+  rep_min: number | null;
+  rep_max: number | null;
+  duration_min_seconds: number | null;
+  duration_max_seconds: number | null;
+  target_rir: number | null;
+  rest_seconds: number;
+  is_optional: boolean;
+  note: string | null;
+}
+
+export interface WorkoutSessionRow {
+  id: string;
+  record_date: string;
+  plan_id: string | null;
+  plan_day_id: string | null;
+  workout_type_snapshot: string;
+  workout_name_snapshot: string;
+  started_at: string;
+  ended_at: string | null;
+  duration_minutes: number | null;
+  feeling_score: number | null;
+  note: string | null;
+  status: "planned" | "in_progress" | "completed" | "cancelled";
+  client_idempotency_key: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkoutSessionExerciseRow {
+  id: string;
+  session_id: string;
+  exercise_id: string | null;
+  exercise_name_snapshot: string;
+  sort_order: number;
+  target_sets_snapshot: number | null;
+  rep_min_snapshot: number | null;
+  rep_max_snapshot: number | null;
+  target_rir_snapshot: number | null;
+  rest_seconds_snapshot: number | null;
+  status: "pending" | "in_progress" | "completed" | "skipped";
+  note: string | null;
+}
+
+export interface WorkoutSetRow {
+  id: string;
+  session_exercise_id: string;
+  set_number: number;
+  set_type: "warmup" | "working" | "drop" | "backoff" | "other";
+  weight_kg: number | null;
+  reps: number | null;
+  rir: number | null;
+  duration_seconds: number | null;
+  completed_at: string | null;
+  is_completed: boolean;
+  client_idempotency_key: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkoutSummaryRow {
+  session_id: string;
+  working_sets: number;
+  total_reps: number;
+  total_volume_kg: number;
+}
+
+export interface WorkoutPlanGraph {
+  plan: WorkoutPlanRow;
+  days: Array<{ day: WorkoutPlanDayRow; exercises: Array<{ planExercise: WorkoutPlanExerciseRow; exercise: ExerciseLibraryRow }> }>;
+}
+
+export interface WorkoutSessionGraph {
+  session: WorkoutSessionRow;
+  exercises: Array<{ exercise: WorkoutSessionExerciseRow; sets: WorkoutSetRow[] }>;
+  summary: WorkoutSummaryRow | null;
+}
+
 type QueryResult<T> = { data: T | null; error: { message: string } | null };
 
 function unwrap<T>({ data, error }: QueryResult<T>): T {
@@ -440,4 +557,104 @@ export async function updateMealTemplate(templateId: string, input: { name: stri
 export async function deleteMealTemplate(templateId: string): Promise<void> {
   const result = await getSupabaseAdmin().from("meal_templates").delete().eq("id", templateId);
   if (result.error) throw new Error(result.error.message);
+}
+
+const WORKOUT_SEED = [
+  { dayCode: "push", name: "PUSH", estimatedMinutes: 56, exercises: [["杠铃卧推", 3, 6, 8, 150], ["上斜哑铃卧推", 3, 8, 12, 120], ["双杠臂屈伸", 2, 8, 12, 120], ["器械夹胸", 2, 10, 15, 75], ["哑铃侧平举", 4, 12, 20, 75], ["绳索过头臂屈伸", 3, 10, 15, 75]] },
+  { dayCode: "pull", name: "PULL", estimatedMinutes: 52, exercises: [["对握高位下拉", 3, 8, 12, 120], ["单手器械划船", 3, 8, 12, 120], ["坐姿绳索划船", 2, 10, 15, 90], ["反向蝴蝶机飞鸟", 3, 12, 20, 75], ["绳索弯举", 3, 10, 15, 75]] },
+  { dayCode: "legs", name: "LEGS", estimatedMinutes: 58, exercises: [["哈克深蹲", 3, 6, 10, 150], ["罗马尼亚硬拉", 3, 8, 10, 120], ["保加利亚分腿蹲", 2, 8, 12, 120], ["腿弯举", 3, 10, 15, 90], ["腿屈伸", 2, 10, 15, 75], ["提踵", 3, 10, 15, 60]] },
+  { dayCode: "core", name: "CORE", estimatedMinutes: 35, exercises: [["绳索卷腹", 3, 10, 15, 75], ["悬垂举膝", 3, 8, 15, 75], ["健腹轮", 3, 6, 12, 90], ["Pallof Press", 3, 10, 15, 60], ["侧桥", 2, 30, 45, 60]] },
+  { dayCode: "rest", name: "REST", estimatedMinutes: 0, exercises: [] },
+] as const;
+
+async function getWorkoutPlanGraph(planId: string): Promise<WorkoutPlanGraph> {
+  const plan = unwrap<WorkoutPlanRow>(await getSupabaseAdmin().from("workout_plans").select("*").eq("id", planId).single());
+  const days = unwrap(await getSupabaseAdmin().from("workout_plan_days").select("*").eq("plan_id", planId).order("sort_order", { ascending: true })) as WorkoutPlanDayRow[];
+  if (!days.length) return { plan, days: [] };
+  const planExercises = unwrap(await getSupabaseAdmin().from("workout_plan_exercises").select("*").in("plan_day_id", days.map(day => day.id)).order("sort_order", { ascending: true })) as WorkoutPlanExerciseRow[];
+  const exercises = planExercises.length ? (unwrap(await getSupabaseAdmin().from("exercise_library").select("*").in("id", planExercises.map(item => item.exercise_id))) as ExerciseLibraryRow[]) : [];
+  return { plan, days: days.map(day => ({ day, exercises: planExercises.filter(item => item.plan_day_id === day.id).map(planExercise => ({ planExercise, exercise: exercises.find(item => item.id === planExercise.exercise_id) })).filter((item): item is { planExercise: WorkoutPlanExerciseRow; exercise: ExerciseLibraryRow } => Boolean(item.exercise)) })) };
+}
+
+export async function ensureWorkoutSeed(): Promise<WorkoutPlanGraph> {
+  const existing = await getSupabaseAdmin().from("workout_plans").select("*").eq("name", "PPL + Core V1").eq("version", "V1").maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  const plan = existing.data as WorkoutPlanRow | null;
+  const currentPlan = plan ?? unwrap<WorkoutPlanRow>(await getSupabaseAdmin().from("workout_plans").insert({ name: "PPL + Core V1", version: "V1", description: "Push · Pull · Legs · Core · Rest" }).select("*").single());
+  for (const [dayIndex, daySeed] of WORKOUT_SEED.entries()) {
+    const day = unwrap<WorkoutPlanDayRow>(await getSupabaseAdmin().from("workout_plan_days").upsert({ plan_id: currentPlan.id, day_code: daySeed.dayCode, name: daySeed.name, sort_order: dayIndex, estimated_minutes: daySeed.estimatedMinutes, is_rest_day: daySeed.dayCode === "rest" }, { onConflict: "plan_id,day_code" }).select("*").single());
+    const exerciseNames = daySeed.exercises.map(item => item[0]);
+    if (!exerciseNames.length) continue;
+    const exerciseRows = unwrap(await getSupabaseAdmin().from("exercise_library").upsert(exerciseNames.map(name => ({ name, category: "strength", primary_muscle: daySeed.dayCode, default_rest_seconds: daySeed.exercises.find(item => item[0] === name)?.[4] ?? 90 })), { onConflict: "name" }).select("*")) as ExerciseLibraryRow[];
+    for (const [sortOrder, seed] of daySeed.exercises.entries()) {
+      const exercise = exerciseRows.find(row => row.name === seed[0]);
+      if (!exercise) continue;
+      await unwrap(await getSupabaseAdmin().from("workout_plan_exercises").upsert({ plan_day_id: day.id, exercise_id: exercise.id, sort_order: sortOrder, target_sets: seed[1], rep_min: seed[2], rep_max: seed[3], target_rir: 2, rest_seconds: seed[4], is_optional: false }, { onConflict: "plan_day_id,sort_order" }).select("*").single());
+    }
+  }
+  return getWorkoutPlanGraph(currentPlan.id);
+}
+
+export async function listWorkoutPlans(): Promise<WorkoutPlanGraph[]> {
+  const seeded = await ensureWorkoutSeed();
+  return [seeded];
+}
+
+export async function createWorkoutSession(input: { record_date: string; plan_id: string; plan_day_id: string; client_idempotency_key: string }): Promise<WorkoutSessionGraph> {
+  await ensureDailyLog(input.record_date);
+  const graph = await getWorkoutPlanGraph(input.plan_id);
+  const day = graph.days.find(item => item.day.id === input.plan_day_id);
+  if (!day) throw new Error("Workout plan day not found");
+  const session = unwrap<WorkoutSessionRow>(await getSupabaseAdmin().from("workout_sessions").insert({ record_date: input.record_date, plan_id: graph.plan.id, plan_day_id: day.day.id, workout_type_snapshot: day.day.day_code, workout_name_snapshot: day.day.name, started_at: new Date().toISOString(), status: "in_progress", client_idempotency_key: input.client_idempotency_key }).select("*").single());
+  try {
+    await unwrap(await getSupabaseAdmin().from("workout_session_exercises").insert(day.exercises.map(({ planExercise, exercise }, index) => ({ session_id: session.id, exercise_id: exercise.id, exercise_name_snapshot: exercise.name, sort_order: index, target_sets_snapshot: planExercise.target_sets, rep_min_snapshot: planExercise.rep_min, rep_max_snapshot: planExercise.rep_max, target_rir_snapshot: planExercise.target_rir, rest_seconds_snapshot: planExercise.rest_seconds, status: "pending" }))).select("*"));
+  } catch (error) {
+    await getSupabaseAdmin().from("workout_sessions").delete().eq("id", session.id);
+    throw error;
+  }
+  return getWorkoutSession(session.id);
+}
+
+export async function getWorkoutSession(sessionId: string): Promise<WorkoutSessionGraph> {
+  const session = unwrap<WorkoutSessionRow>(await getSupabaseAdmin().from("workout_sessions").select("*").eq("id", sessionId).single());
+  const exercises = unwrap(await getSupabaseAdmin().from("workout_session_exercises").select("*").eq("session_id", sessionId).order("sort_order", { ascending: true })) as WorkoutSessionExerciseRow[];
+  const sets = exercises.length ? (unwrap(await getSupabaseAdmin().from("workout_sets").select("*").in("session_exercise_id", exercises.map(item => item.id)).order("set_number", { ascending: true })) as WorkoutSetRow[]) : [];
+  const summaryResult = await getSupabaseAdmin().from("v_workout_session_summary").select("*").eq("session_id", sessionId).maybeSingle();
+  if (summaryResult.error) throw new Error(summaryResult.error.message);
+  return { session, exercises: exercises.map(exercise => ({ exercise, sets: sets.filter(set => set.session_exercise_id === exercise.id) })), summary: summaryResult.data as WorkoutSummaryRow | null };
+}
+
+export async function listWorkoutSessions(recordDate: string): Promise<WorkoutSessionGraph[]> {
+  const sessions = unwrap(await getSupabaseAdmin().from("workout_sessions").select("*").eq("record_date", recordDate).order("started_at", { ascending: true })) as WorkoutSessionRow[];
+  return Promise.all(sessions.map(session => getWorkoutSession(session.id)));
+}
+
+export async function upsertWorkoutSet(sessionId: string, input: { session_exercise_id: string; set_number: number; set_type: WorkoutSetRow["set_type"]; weight_kg?: number | null; reps?: number | null; rir?: number | null; duration_seconds?: number | null; is_completed: boolean; client_idempotency_key: string }): Promise<WorkoutSetRow> {
+  const sessionExercise = unwrap<WorkoutSessionExerciseRow>(await getSupabaseAdmin().from("workout_session_exercises").select("*").eq("id", input.session_exercise_id).eq("session_id", sessionId).single());
+  const set = unwrap<WorkoutSetRow>(await getSupabaseAdmin().from("workout_sets").upsert({ ...input, completed_at: input.is_completed ? new Date().toISOString() : null }, { onConflict: "session_exercise_id,set_number,set_type" }).select("*").single());
+  const completed = await getSupabaseAdmin().from("workout_sets").select("id", { count: "exact", head: true }).eq("session_exercise_id", sessionExercise.id).eq("is_completed", true);
+  if (completed.error) throw new Error(completed.error.message);
+  const status = sessionExercise.target_sets_snapshot && Number(completed.count ?? 0) >= sessionExercise.target_sets_snapshot ? "completed" : "in_progress";
+  await getSupabaseAdmin().from("workout_session_exercises").update({ status }).eq("id", sessionExercise.id);
+  return set;
+}
+
+export async function finishWorkoutSession(sessionId: string, input: { feeling_score?: number | null; note?: string | null; duration_minutes?: number | null }): Promise<WorkoutSessionGraph> {
+  const current = await getWorkoutSession(sessionId);
+  const duration = input.duration_minutes ?? Math.max(0, Math.round((Date.now() - new Date(current.session.started_at).getTime()) / 60_000));
+  await unwrap(await getSupabaseAdmin().from("workout_sessions").update({ status: "completed", ended_at: new Date().toISOString(), duration_minutes: duration, feeling_score: input.feeling_score ?? null, note: input.note ?? null }).eq("id", sessionId).select("*"));
+  return getWorkoutSession(sessionId);
+}
+
+export async function getLastWorkoutSet(exerciseId: string, excludeSessionId?: string): Promise<{ date: string; set: WorkoutSetRow } | null> {
+  let query = getSupabaseAdmin().from("workout_sessions").select("id,record_date,started_at").eq("status", "completed").order("started_at", { ascending: false }).limit(20);
+  if (excludeSessionId) query = query.neq("id", excludeSessionId);
+  const sessions = unwrap(await query) as Array<{ id: string; record_date: string; started_at: string }>;
+  for (const session of sessions) {
+    const exercises = unwrap(await getSupabaseAdmin().from("workout_session_exercises").select("id").eq("session_id", session.id).eq("exercise_id", exerciseId)) as Array<{ id: string }>;
+    if (!exercises.length) continue;
+    const sets = unwrap(await getSupabaseAdmin().from("workout_sets").select("*").in("session_exercise_id", exercises.map(item => item.id)).eq("is_completed", true).eq("set_type", "working").order("set_number", { ascending: false }).limit(1)) as WorkoutSetRow[];
+    if (sets[0]) return { date: session.record_date, set: sets[0] };
+  }
+  return null;
 }

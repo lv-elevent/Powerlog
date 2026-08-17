@@ -78,6 +78,92 @@ export interface WorkoutSummary {
   best: string;
 }
 
+export interface ExerciseLibraryRecord {
+  id: string;
+  name: string;
+  category: string;
+  primaryMuscle: string | null;
+  equipment: string | null;
+  defaultRestSeconds: number | null;
+  isActive: boolean;
+}
+
+export interface WorkoutPlanExerciseRecord {
+  id: string;
+  exerciseId: string;
+  exercise: ExerciseLibraryRecord | null;
+  sortOrder: number;
+  targetSets: number;
+  repMin: number | null;
+  repMax: number | null;
+  targetRir: number | null;
+  restSeconds: number;
+  isOptional: boolean;
+}
+
+export interface WorkoutPlanDayRecord {
+  id: string;
+  dayCode: string;
+  name: string;
+  sortOrder: number;
+  estimatedMinutes: number | null;
+  isRestDay: boolean;
+  exercises: WorkoutPlanExerciseRecord[];
+}
+
+export interface WorkoutPlanRecord {
+  id: string;
+  name: string;
+  version: string;
+  description: string | null;
+  days: WorkoutPlanDayRecord[];
+}
+
+export interface WorkoutSetRecord {
+  id: string;
+  sessionExerciseId: string;
+  setNumber: number;
+  setType: "warmup" | "working" | "drop" | "backoff" | "other";
+  weightKg: number | null;
+  reps: number | null;
+  rir: number | null;
+  durationSeconds: number | null;
+  completedAt: string | null;
+  isCompleted: boolean;
+}
+
+export interface WorkoutSessionExerciseRecord {
+  id: string;
+  sessionId: string;
+  exerciseId: string | null;
+  exerciseNameSnapshot: string;
+  sortOrder: number;
+  targetSetsSnapshot: number | null;
+  repMinSnapshot: number | null;
+  repMaxSnapshot: number | null;
+  targetRirSnapshot: number | null;
+  restSecondsSnapshot: number | null;
+  status: "pending" | "in_progress" | "completed" | "skipped";
+  sets: WorkoutSetRecord[];
+}
+
+export interface WorkoutSessionRecord {
+  id: string;
+  recordDate: string;
+  planId: string | null;
+  planDayId: string | null;
+  workoutTypeSnapshot: string;
+  workoutNameSnapshot: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationMinutes: number | null;
+  feelingScore: number | null;
+  note: string | null;
+  status: "planned" | "in_progress" | "completed" | "cancelled";
+  exercises: WorkoutSessionExerciseRecord[];
+  summary: { workingSets: number; totalReps: number; totalVolumeKg: number } | null;
+}
+
 export interface Food {
   id: string;
   name: string;
