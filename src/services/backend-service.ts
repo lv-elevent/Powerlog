@@ -1,4 +1,5 @@
 import type { BodyMeasurementRow, CardioSessionRow, DailyLogRow, DailyNoteRow, DailyNutritionRow, DailyReviewRow, ExpenseCategoryRow, ExpenseRow, FoodLibraryRow, MealItemRow, MealRow, MealTemplateItemRow, MealTemplateRow, MealTotalRow, NutritionGoalRow, SleepLogRow, WaterLogRow, WorkSessionRow, WorkoutSessionGraph } from "@/lib/db/repositories";
+import type { InsightCategory, InsightRange, InsightsPayload } from "@/types/insights";
 
 export interface BackendDayData {
   date: string;
@@ -63,3 +64,4 @@ export async function saveDailyReview(date: string, input: { bestThing: string; 
 export async function saveSleep(input: { date: string; durationMinutes: number; qualityScore: number }): Promise<SleepLogRow> { return request<SleepLogRow>("/api/sleep", { method: "POST", body: JSON.stringify(input) }); }
 export async function addCardio(input: { date: string; cardioType: string; durationMinutes: number }): Promise<CardioSessionRow> { return request<CardioSessionRow>("/api/cardio", { method: "POST", body: JSON.stringify({ ...input, clientIdempotencyKey: crypto.randomUUID() }) }); }
 export async function addWork(input: { date: string; sessionType: "work" | "study" | "project" | "other"; title: string; durationMinutes: number; didText?: string }): Promise<WorkSessionRow> { return request<WorkSessionRow>("/api/work", { method: "POST", body: JSON.stringify({ ...input, clientIdempotencyKey: crypto.randomUUID() }) }); }
+export async function getInsightsData(range: InsightRange, category: InsightCategory): Promise<InsightsPayload> { return request<InsightsPayload>(`/api/insights?range=${range}&category=${category}`, { cache: "no-store" }); }
