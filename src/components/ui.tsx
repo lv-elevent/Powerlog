@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, ChevronRight, CircleCheck, Droplets, Dumbbell, Flame, Footprints, Moon, PenLine, Plus, Sun, Utensils, Wallet, BriefcaseBusiness, BookOpen, X } from "lucide-react";
+import { ArrowRight, Check, ChevronRight, CircleCheck, Droplets, Dumbbell, Flame, Footprints, Moon, PenLine, Plus, Scale, Utensils, Wallet, BriefcaseBusiness, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TimelineItem } from "@/types";
 
-export const iconForKind: Record<TimelineItem["kind"], LucideIcon> = { sleep: Moon, cardio: Footprints, meal: Utensils, work: BriefcaseBusiness, workout: Dumbbell, water: Droplets, expense: Wallet, review: CircleCheck };
+export const iconForKind: Record<TimelineItem["kind"], LucideIcon> = { sleep: Moon, cardio: Footprints, meal: Utensils, work: BriefcaseBusiness, workout: Dumbbell, water: Droplets, expense: Wallet, review: CircleCheck, body: Scale, note: PenLine };
 
 export function PageIntro({ eyebrow, title, subtitle, action }: { eyebrow?: string; title: string; subtitle?: string; action?: React.ReactNode }) {
   return <div className="relative mb-5 flex items-start justify-between gap-4 overflow-hidden pt-4 md:pt-8"><div className="relative z-10"><div className="eyebrow mb-2">{eyebrow}</div><h1 className="text-[30px] font-bold leading-tight tracking-[-0.04em] text-ink md:text-4xl">{title}</h1>{subtitle && <p className="mt-2 text-[15px] text-slate-500">{subtitle}</p>}</div>{action && <div className="relative z-10 shrink-0 pt-1">{action}</div>}<div className="pointer-events-none absolute -right-10 -top-24 h-52 w-52 rounded-full bg-blue-100/60 blur-3xl" /></div>;

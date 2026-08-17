@@ -1,4 +1,5 @@
-import { historyDays } from "@/mock/data";
-import type { HistoryDay } from "@/types";
+import { getBackendHistoryDay, type BackendDayData } from "@/services/backend-service";
 
-export async function getHistoryDays(): Promise<HistoryDay[]> { return historyDays; }
+export type { BackendDayData } from "@/services/backend-service";
+
+export async function getHistoryData(date: string): Promise<BackendDayData> { return getBackendHistoryDay(date); }

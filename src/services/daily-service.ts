@@ -1,6 +1,5 @@
-import { mockToday } from "@/mock/data";
-import type { DaySnapshot } from "@/types";
+import { getBackendDay, type BackendDayData } from "@/services/backend-service";
 
-export async function getTodayData(): Promise<DaySnapshot> {
-  return mockToday;
+export async function getTodayData(date?: string): Promise<BackendDayData> {
+  return getBackendDay(date);
 }

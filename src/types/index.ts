@@ -1,5 +1,5 @@
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
-export type TimelineKind = "sleep" | "cardio" | "meal" | "work" | "workout" | "water" | "expense" | "review";
+export type TimelineKind = "sleep" | "cardio" | "meal" | "work" | "workout" | "water" | "expense" | "review" | "body" | "note";
 
 export interface NutritionGoal {
   calories: number;
