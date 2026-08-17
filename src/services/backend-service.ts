@@ -1,4 +1,4 @@
-import type { BodyMeasurementRow, DailyLogRow, DailyNoteRow, ExpenseCategoryRow, ExpenseRow, WaterLogRow } from "@/lib/db/repositories";
+import type { BodyMeasurementRow, DailyLogRow, DailyNoteRow, DailyNutritionRow, ExpenseCategoryRow, ExpenseRow, FoodLibraryRow, MealItemRow, MealRow, MealTemplateItemRow, MealTemplateRow, MealTotalRow, NutritionGoalRow, WaterLogRow } from "@/lib/db/repositories";
 
 export interface BackendDayData {
   date: string;
@@ -7,6 +7,14 @@ export interface BackendDayData {
   water: { totalMl: number; logs: WaterLogRow[] };
   expenses: { total: number; logs: ExpenseRow[] };
   notes: DailyNoteRow[];
+  nutrition: { totals: DailyNutritionRow | null; meals: Array<{ meal: MealRow; items: MealItemRow[]; total: MealTotalRow | null }> };
+  nutritionGoal: NutritionGoalRow | null;
+}
+
+export interface NutritionData {
+  foods: FoodLibraryRow[];
+  templates: Array<{ template: MealTemplateRow; items: MealTemplateItemRow[]; foods: FoodLibraryRow[] }>;
+  goals: NutritionGoalRow[];
 }
 
 export function currentRecordDate(): string { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date()); }

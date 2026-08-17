@@ -1,4 +1,4 @@
-export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack" | "pre_workout" | "post_workout" | "other";
 export type TimelineKind = "sleep" | "cardio" | "meal" | "work" | "workout" | "water" | "expense" | "review" | "body" | "note";
 
 export interface NutritionGoal {
@@ -87,6 +87,72 @@ export interface Food {
   carbs: number;
   fat: number;
   fiber: number;
+}
+
+export type FoodWeightBasis = "cooked" | "raw" | "edible_cooked" | "packaged" | "serving" | "other";
+
+export interface FoodLibraryItem {
+  id: string;
+  name: string;
+  brand: string | null;
+  servingName: string | null;
+  servingWeightG: number | null;
+  weightBasis: FoodWeightBasis;
+  caloriesPer100G: number;
+  proteinPer100G: number;
+  carbsPer100G: number;
+  fatPer100G: number;
+  fiberPer100G: number;
+  isFavorite: boolean;
+  isActive: boolean;
+  note: string | null;
+}
+
+export interface NutritionGoalRecord {
+  id: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  water: number;
+  note: string | null;
+}
+
+export interface NutritionMealItem {
+  id: string;
+  foodId: string | null;
+  foodNameSnapshot: string;
+  brandSnapshot: string | null;
+  quantityG: number | null;
+  servingNameSnapshot: string | null;
+  servingCount: number | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}
+
+export interface NutritionMealRecord {
+  id: string;
+  recordDate: string;
+  type: MealType;
+  title: string | null;
+  eatenAt: string;
+  sourceTemplateId: string | null;
+  items: NutritionMealItem[];
+  totals: NutritionTotals;
+}
+
+export interface MealTemplateRecord {
+  id: string;
+  name: string;
+  mealType: MealType;
+  isFavorite: boolean;
+  items: Array<{ id: string; foodId: string; quantityG: number | null; servingCount: number | null; food: FoodLibraryItem | null }>;
 }
 
 export interface DaySnapshot {

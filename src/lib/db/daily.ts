@@ -1,13 +1,16 @@
-import { getBodyMeasurement, getDailyLog, listDailyNotes, listExpenseCategories, listExpenses, listWaterLogs } from "@/lib/db/repositories";
+import { getBodyMeasurement, getDailyLog, getDailyNutrition, getNutritionGoal, listDailyNotes, listExpenseCategories, listExpenses, listMeals, listWaterLogs } from "@/lib/db/repositories";
 
 export async function getDay(recordDate: string) {
-  const [daily, body, waterLogs, expenses, notes, categories] = await Promise.all([
+  const [daily, body, waterLogs, expenses, notes, categories, nutritionTotals, meals, nutritionGoal] = await Promise.all([
     getDailyLog(recordDate),
     getBodyMeasurement(recordDate),
     listWaterLogs(recordDate),
     listExpenses(recordDate),
     listDailyNotes(recordDate),
     listExpenseCategories(),
+    getDailyNutrition(recordDate),
+    listMeals(recordDate),
+    getNutritionGoal(recordDate),
   ]);
   const categoryById = new Map(categories.map(category => [category.id, category.name]));
   return {
@@ -17,5 +20,7 @@ export async function getDay(recordDate: string) {
     water: { totalMl: waterLogs.reduce((sum, item) => sum + Number(item.amount_ml), 0), logs: waterLogs },
     expenses: { total: expenses.reduce((sum, item) => sum + Number(item.amount), 0), logs: expenses.map(item => ({ ...item, category_name: item.category_id ? categoryById.get(item.category_id) ?? null : null })) },
     notes,
+    nutrition: { totals: nutritionTotals, meals },
+    nutritionGoal,
   };
 }
