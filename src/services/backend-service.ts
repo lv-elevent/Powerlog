@@ -1,4 +1,4 @@
-import type { BodyMeasurementRow, DailyLogRow, DailyNoteRow, DailyNutritionRow, ExpenseCategoryRow, ExpenseRow, FoodLibraryRow, MealItemRow, MealRow, MealTemplateItemRow, MealTemplateRow, MealTotalRow, NutritionGoalRow, WaterLogRow, WorkoutSessionGraph } from "@/lib/db/repositories";
+import type { BodyMeasurementRow, CardioSessionRow, DailyLogRow, DailyNoteRow, DailyNutritionRow, DailyReviewRow, ExpenseCategoryRow, ExpenseRow, FoodLibraryRow, MealItemRow, MealRow, MealTemplateItemRow, MealTemplateRow, MealTotalRow, NutritionGoalRow, SleepLogRow, WaterLogRow, WorkSessionRow, WorkoutSessionGraph } from "@/lib/db/repositories";
 
 export interface BackendDayData {
   date: string;
@@ -10,6 +10,10 @@ export interface BackendDayData {
   nutrition: { totals: DailyNutritionRow | null; meals: Array<{ meal: MealRow; items: MealItemRow[]; total: MealTotalRow | null }> };
   nutritionGoal: NutritionGoalRow | null;
   workouts: WorkoutSessionGraph[];
+  sleep: SleepLogRow | null;
+  cardio: CardioSessionRow[];
+  work: WorkSessionRow[];
+  review: DailyReviewRow | null;
 }
 
 export interface NutritionData {
@@ -54,3 +58,8 @@ export async function addDailyNote(input: { date: string; text: string }): Promi
 export async function getExpenseCategories(): Promise<ExpenseCategoryRow[]> {
   return request<ExpenseCategoryRow[]>("/api/expenses/categories", { cache: "no-store" });
 }
+
+export async function saveDailyReview(date: string, input: { bestThing: string; improvement: string; tomorrowPriority: string }): Promise<DailyReviewRow> { return request<DailyReviewRow>(`/api/review/${encodeURIComponent(date)}`, { method: "POST", body: JSON.stringify({ bestThing: input.bestThing || null, improvement: input.improvement || null, tomorrowPriority: input.tomorrowPriority || null }) }); }
+export async function saveSleep(input: { date: string; durationMinutes: number; qualityScore: number }): Promise<SleepLogRow> { return request<SleepLogRow>("/api/sleep", { method: "POST", body: JSON.stringify(input) }); }
+export async function addCardio(input: { date: string; cardioType: string; durationMinutes: number }): Promise<CardioSessionRow> { return request<CardioSessionRow>("/api/cardio", { method: "POST", body: JSON.stringify({ ...input, clientIdempotencyKey: crypto.randomUUID() }) }); }
+export async function addWork(input: { date: string; sessionType: "work" | "study" | "project" | "other"; title: string; durationMinutes: number; didText?: string }): Promise<WorkSessionRow> { return request<WorkSessionRow>("/api/work", { method: "POST", body: JSON.stringify({ ...input, clientIdempotencyKey: crypto.randomUUID() }) }); }

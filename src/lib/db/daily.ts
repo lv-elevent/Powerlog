@@ -1,7 +1,7 @@
-import { getBodyMeasurement, getDailyLog, getDailyNutrition, getNutritionGoal, listDailyNotes, listExpenseCategories, listExpenses, listMeals, listWaterLogs, listWorkoutSessions } from "@/lib/db/repositories";
+import { getBodyMeasurement, getDailyLog, getDailyNutrition, getNutritionGoal, getDailyReview, getSleepLog, listCardioSessions, listDailyNotes, listExpenseCategories, listExpenses, listMeals, listWorkSessions, listWaterLogs, listWorkoutSessions } from "@/lib/db/repositories";
 
 export async function getDay(recordDate: string) {
-  const [daily, body, waterLogs, expenses, notes, categories, nutritionTotals, meals, nutritionGoal, workouts] = await Promise.all([
+  const [daily, body, waterLogs, expenses, notes, categories, nutritionTotals, meals, nutritionGoal, workouts, sleep, cardio, work, review] = await Promise.all([
     getDailyLog(recordDate),
     getBodyMeasurement(recordDate),
     listWaterLogs(recordDate),
@@ -12,6 +12,10 @@ export async function getDay(recordDate: string) {
     listMeals(recordDate),
     getNutritionGoal(recordDate),
     listWorkoutSessions(recordDate),
+    getSleepLog(recordDate),
+    listCardioSessions(recordDate),
+    listWorkSessions(recordDate),
+    getDailyReview(recordDate),
   ]);
   const categoryById = new Map(categories.map(category => [category.id, category.name]));
   return {
@@ -24,5 +28,9 @@ export async function getDay(recordDate: string) {
     nutrition: { totals: nutritionTotals, meals },
     nutritionGoal,
     workouts,
+    sleep,
+    cardio,
+    work,
+    review,
   };
 }

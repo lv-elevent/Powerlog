@@ -1,0 +1,7 @@
+import { NextResponse } from "next/server";
+import { badRequestResponse, serverErrorResponse, unauthorizedResponse } from "@/lib/auth/http";
+import { requireUnlockedSession } from "@/lib/auth/session";
+import { getSleepLog, upsertSleepLog } from "@/lib/db/repositories";
+import { sleepSchema } from "@/lib/validation/daily";
+export async function GET(request: Request) { try { await requireUnlockedSession(); const date = new URL(request.url).searchParams.get("date"); return NextResponse.json(date ? await getSleepLog(date) : null); } catch (error) { if (error instanceof Error && error.name === "UnauthorizedError") return unauthorizedResponse(); return serverErrorResponse(error); } }
+export async function POST(request: Request) { try { await requireUnlockedSession(); const parsed = sleepSchema.safeParse(await request.json()); if (!parsed.success) return badRequestResponse(parsed.error.issues[0]?.message ?? "睡眠参数错误"); const input = parsed.data; return NextResponse.json(await upsertSleepLog({ record_date: input.date, bedtime_at: input.bedtimeAt ?? null, sleep_at: input.sleepAt ?? null, wake_at: input.wakeAt ?? null, duration_minutes: input.durationMinutes ?? null, quality_score: input.qualityScore ?? null, note: input.note ?? null }), { status: 201 }); } catch (error) { if (error instanceof Error && error.name === "UnauthorizedError") return unauthorizedResponse(); return serverErrorResponse(error); } }

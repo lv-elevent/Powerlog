@@ -329,6 +329,11 @@ export interface WorkoutSessionGraph {
   summary: WorkoutSummaryRow | null;
 }
 
+export interface SleepLogRow { id: string; record_date: string; bedtime_at: string | null; sleep_at: string | null; wake_at: string | null; duration_minutes: number | null; quality_score: number | null; note: string | null; created_at: string; updated_at: string; }
+export interface CardioSessionRow { id: string; record_date: string; performed_at: string; cardio_type: string; duration_minutes: number; speed_kmh: number | null; incline_pct: number | null; distance_km: number | null; avg_heart_rate: number | null; calories_estimated: number | null; note: string | null; client_idempotency_key: string | null; created_at: string; updated_at: string; }
+export interface WorkSessionRow { id: string; record_date: string; session_type: string; title: string | null; start_at: string | null; end_at: string | null; duration_minutes: number | null; did_text: string | null; learned_text: string | null; output_text: string | null; problems_text: string | null; note: string | null; client_idempotency_key: string | null; created_at: string; updated_at: string; }
+export interface DailyReviewRow { id: string; record_date: string; best_thing: string | null; improvement: string | null; tomorrow_priority: string | null; mood_score: number | null; energy_score: number | null; completed_at: string | null; created_at: string; updated_at: string; }
+
 type QueryResult<T> = { data: T | null; error: { message: string } | null };
 
 function unwrap<T>({ data, error }: QueryResult<T>): T {
@@ -658,3 +663,12 @@ export async function getLastWorkoutSet(exerciseId: string, excludeSessionId?: s
   }
   return null;
 }
+
+export async function getSleepLog(date: string): Promise<SleepLogRow | null> { const result = await getSupabaseAdmin().from("sleep_logs").select("*").eq("record_date", date).maybeSingle(); if (result.error) throw new Error(result.error.message); return result.data as SleepLogRow | null; }
+export async function upsertSleepLog(input: Omit<SleepLogRow, "id" | "created_at" | "updated_at">): Promise<SleepLogRow> { return unwrap(await getSupabaseAdmin().from("sleep_logs").upsert(input, { onConflict: "record_date" }).select("*").single()) as SleepLogRow; }
+export async function listCardioSessions(date: string): Promise<CardioSessionRow[]> { return unwrap(await getSupabaseAdmin().from("cardio_sessions").select("*").eq("record_date", date).order("performed_at", { ascending: true })) as CardioSessionRow[]; }
+export async function createCardioSession(input: Omit<CardioSessionRow, "id" | "created_at" | "updated_at">): Promise<CardioSessionRow> { return unwrap(await getSupabaseAdmin().from("cardio_sessions").upsert(input, { onConflict: "client_idempotency_key" }).select("*").single()) as CardioSessionRow; }
+export async function listWorkSessions(date: string): Promise<WorkSessionRow[]> { return unwrap(await getSupabaseAdmin().from("work_sessions").select("*").eq("record_date", date).order("start_at", { ascending: true })) as WorkSessionRow[]; }
+export async function createWorkSession(input: Omit<WorkSessionRow, "id" | "created_at" | "updated_at">): Promise<WorkSessionRow> { return unwrap(await getSupabaseAdmin().from("work_sessions").upsert(input, { onConflict: "client_idempotency_key" }).select("*").single()) as WorkSessionRow; }
+export async function getDailyReview(date: string): Promise<DailyReviewRow | null> { const result = await getSupabaseAdmin().from("daily_reviews").select("*").eq("record_date", date).maybeSingle(); if (result.error) throw new Error(result.error.message); return result.data as DailyReviewRow | null; }
+export async function completeDailyReview(input: Omit<DailyReviewRow, "id" | "created_at" | "updated_at">): Promise<DailyReviewRow> { const review = unwrap(await getSupabaseAdmin().from("daily_reviews").upsert(input, { onConflict: "record_date" }).select("*").single()) as DailyReviewRow; const closed = await getSupabaseAdmin().from("daily_logs").upsert({ record_date: input.record_date, is_closed: true, closed_at: input.completed_at ?? new Date().toISOString(), completion_score: 100 }, { onConflict: "record_date" }); if (closed.error) throw new Error(closed.error.message); return review; }
