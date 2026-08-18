@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CalendarDays, ChevronRight, CircleCheck, Dumbbell, Droplets, Flame, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { currentRecordDate, formatRecordDateLabel } from "@/services/backend-service";
 import { getHistoryData, type BackendDayData } from "@/services/history-service";
 import { mapMeal } from "@/services/nutrition-service";
 import { BackLink, Badge, SectionHeader, Timeline } from "@/components/ui";
@@ -12,12 +13,13 @@ import type { TimelineItem } from "@/types";
 
 export default function HistoryDetailPage() {
   const params = useParams<{ date: string }>();
-  const date = params.date ?? "2026-08-17";
+  const date = params.date ?? currentRecordDate();
   const [data, setData] = useState<BackendDayData | null>(null);
   const [error, setError] = useState("");
+
   useEffect(() => { void getHistoryData(date).then(setData).catch(reason => setError(reason instanceof Error ? reason.message : "历史数据暂时不可用")); }, [date]);
 
-  const realTimeline = useMemo<TimelineItem[]>(() => {
+  const timeline = useMemo<TimelineItem[]>(() => {
     if (!data) return [];
     const items: TimelineItem[] = [];
     if (data.body) items.push({ id: data.body.id, time: data.body.measured_at ? new Date(data.body.measured_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "—", title: "晨重", detail: `${Number(data.body.weight_kg ?? 0).toFixed(1)} kg`, kind: "body", value: "已记录" });
@@ -27,15 +29,23 @@ export default function HistoryDetailPage() {
     data.nutrition.meals.forEach(group => { const meal = mapMeal(group); const mealTitle = meal.title ?? (meal.type === "breakfast" ? "早餐" : meal.type === "lunch" ? "午餐" : meal.type === "dinner" ? "晚餐" : "加餐"); items.push({ id: meal.id, time: new Date(meal.eatenAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }), title: mealTitle, detail: meal.items.map(item => `${item.foodNameSnapshot} ${item.quantityG ?? ""}g`).join(" · "), kind: "meal", value: `${Math.round(meal.totals.calories)} kcal` }); });
     data.workouts.forEach(workout => items.push({ id: workout.session.id, time: new Date(workout.session.started_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }), title: workout.session.workout_name_snapshot, detail: workout.summary ? `${workout.summary.working_sets} 组 · ${Number(workout.summary.total_volume_kg).toFixed(0)} kg` : "训练进行中", kind: "workout", value: workout.session.status === "completed" ? "已完成" : "进行中" }));
     if (data.sleep) items.push({ id: data.sleep.id, time: data.sleep.wake_at ? new Date(data.sleep.wake_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "—", title: "睡眠", detail: `${Number(data.sleep.duration_minutes ?? 0) / 60} 小时`, kind: "sleep", value: data.sleep.quality_score ? `${data.sleep.quality_score}/5` : "已记录" });
-    data.cardio.forEach(item => items.push({ id: item.id, time: new Date(item.performed_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }), title: "有氧", detail: item.cardio_type, kind: "cardio", value: `${item.duration_minutes} min` }));
-    data.work.forEach(item => items.push({ id: item.id, time: item.start_at ? new Date(item.start_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "—", title: item.title ?? "工作", detail: item.did_text ?? item.session_type, kind: "work", value: item.duration_minutes ? `${item.duration_minutes} min` : "已记录" }));
+    data.cardio.forEach(item => items.push({ id: item.id, time: new Date(item.performed_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }), title: "有氧", detail: item.cardio_type, kind: "cardio", value: `${item.duration_minutes} 分钟` }));
+    data.work.forEach(item => items.push({ id: item.id, time: item.start_at ? new Date(item.start_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "—", title: item.title ?? "工作", detail: item.did_text ?? item.session_type, kind: "work", value: item.duration_minutes ? `${item.duration_minutes} 分钟` : "已记录" }));
     if (data.review) items.push({ id: data.review.id, time: data.review.completed_at ? new Date(data.review.completed_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "—", title: "完成今天复盘", detail: data.review.tomorrow_priority ?? "已完成每日复盘", kind: "review", value: "已完成" });
     return items;
   }, [data]);
+
   const completion = data?.daily?.completion_score ?? 0;
-  const timeline = realTimeline;
   const nutrition = data?.nutrition.totals;
   const workoutMinutes = data?.workouts.reduce((sum, workout) => sum + Number(workout.session.duration_minutes ?? 0), 0) ?? 0;
-  return <><div className="flex items-center justify-between pt-4 md:pt-8"><div className="flex items-center gap-1"><BackLink href="/history" /><div><div className="eyebrow">Read mode</div><h1 className="text-2xl font-bold">8 月 {date.slice(-2)} 日 · 周一</h1></div></div><Link href="/history" className="secondary-button px-3"><CalendarDays size={18} />日历</Link></div><div className="mt-2 flex items-center gap-2 pl-10 text-sm text-slate-500"><Badge tone="green">{completion}% 完整</Badge><span>{error ? "真实数据暂时不可用" : "真实记录与未接入模块并列展示"}</span></div><div className="app-card mt-5 grid grid-cols-5 divide-x divide-slate-100 p-4 text-center"><DayStat icon={<Flame />} label="热量" value={nutrition ? `${Math.round(Number(nutrition.calories_kcal))}` : "—"} tone="orange" /><DayStat icon={<span>◒</span>} label="蛋白质" value={nutrition ? `${Math.round(Number(nutrition.protein_g))}g` : "—"} tone="purple" /><DayStat icon={<Droplets />} label="饮水" value={data ? `${data.water.totalMl}` : "—"} tone="blue" /><DayStat icon={<Dumbbell />} label="训练" value={data?.workouts.length ? `${workoutMinutes}min` : "—"} tone="purple" /><DayStat icon={<Wallet />} label="支出" value={data ? `¥${data.expenses.total.toFixed(2)}` : "—"} tone="orange" /></div><div className="mt-6"><SectionHeader title="完整时间线" action={<button className="text-sm font-semibold text-blue-600">编辑</button>} /><div className="app-card p-5"><Timeline items={timeline} /></div></div><div className="mt-6"><SectionHeader title="当天图片" action={<span className="text-sm text-slate-400">Private Storage</span>} /><div className="space-y-3">{data?.body && <MediaUploader entityType="body_measurement" entityId={data.body.id} role="body_photo" title="身体照片" />}{data?.nutrition.meals.map(group => <MediaUploader key={group.meal.id} entityType="meal" entityId={group.meal.id} role="meal_photo" title={`${group.meal.meal_type}照片`} />)}{data?.work.map(item => <MediaUploader key={item.id} entityType="work_session" entityId={item.id} role="work_screenshot" title={`${item.title ?? "工作"}截图`} />)}{data?.notes.map(item => <MediaUploader key={item.id} entityType="daily_note" entityId={item.id} role="daily_note_image" title="随手记图片" />)}{!data?.body && !data?.nutrition.meals.length && !data?.work.length && !data?.notes.length && <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">当天还没有可关联的记录。</div>}</div></div><Link href={`/review/${date}`} className="primary-button mt-5 w-full"><CircleCheck size={18} />查看每日复盘 <ChevronRight size={18} /></Link></>;
+  return <>
+    <div className="flex items-center justify-between pt-4 md:pt-8"><div className="flex items-center gap-1"><BackLink href="/history" /><div><div className="eyebrow">阅读模式</div><h1 className="text-2xl font-bold">{formatRecordDateLabel(date)}</h1></div></div><Link href="/history" className="secondary-button px-3"><CalendarDays size={18} />日历</Link></div>
+    <div className="mt-2 flex items-center gap-2 pl-10 text-sm text-slate-500"><Badge tone="green">{completion}% 完整</Badge><span>{error ? "真实数据暂时不可用" : "真实记录与未接入模块并列展示"}</span></div>
+    <div className="app-card mt-5 grid grid-cols-5 divide-x divide-slate-100 p-4 text-center"><DayStat icon={<Flame />} label="热量" value={nutrition ? `${Math.round(Number(nutrition.calories_kcal))}` : "—"} tone="orange" /><DayStat icon={<span>◒</span>} label="蛋白质" value={nutrition ? `${Math.round(Number(nutrition.protein_g))}g` : "—"} tone="purple" /><DayStat icon={<Droplets />} label="饮水" value={data ? `${data.water.totalMl}` : "—"} tone="blue" /><DayStat icon={<Dumbbell />} label="训练" value={data?.workouts.length ? `${workoutMinutes} 分钟` : "—"} tone="purple" /><DayStat icon={<Wallet />} label="支出" value={data ? `¥${data.expenses.total.toFixed(2)}` : "—"} tone="orange" /></div>
+    <div className="mt-6"><SectionHeader title="完整时间线" action={<button className="text-sm font-semibold text-blue-600">编辑</button>} /><div className="app-card p-5"><Timeline items={timeline} /></div></div>
+    <div className="mt-6"><SectionHeader title="当天图片" action={<span className="text-sm text-slate-400">私密存储</span>} /><div className="space-y-3">{data?.body && <MediaUploader entityType="body_measurement" entityId={data.body.id} role="body_photo" title="身体照片" />}{data?.nutrition.meals.map(group => <MediaUploader key={group.meal.id} entityType="meal" entityId={group.meal.id} role="meal_photo" title={`${group.meal.meal_type}照片`} />)}{data?.work.map(item => <MediaUploader key={item.id} entityType="work_session" entityId={item.id} role="work_screenshot" title={`${item.title ?? "工作"}截图`} />)}{data?.notes.map(item => <MediaUploader key={item.id} entityType="daily_note" entityId={item.id} role="daily_note_image" title="随手记图片" />)}{!data?.body && !data?.nutrition.meals.length && !data?.work.length && !data?.notes.length && <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">当天还没有可关联的记录。</div>}</div></div>
+    <Link href={`/review/${date}`} className="primary-button mt-5 w-full"><CircleCheck size={18} />查看每日复盘 <ChevronRight size={18} /></Link>
+  </>;
 }
+
 function DayStat({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: "orange" | "purple" | "blue" }) { const colors = { orange: "text-orange-500 bg-orange-50", purple: "text-violet-600 bg-violet-50", blue: "text-blue-600 bg-blue-50" }; return <div><div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-xl ${colors[tone]}`}>{icon}</div><div className="mt-2 text-[11px] text-slate-500">{label}</div><div className="mt-1 text-xs font-bold">{value}</div></div>; }

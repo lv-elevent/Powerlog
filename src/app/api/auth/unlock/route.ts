@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const parsed = unlockSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "PIN 格式不正确" }, { status: 400 });
     const security = await getAppSecurity();
-    if (!security.setup_completed || !security.pin_hash) return NextResponse.json({ error: "请先完成 App 初始化", code: "SETUP_REQUIRED" }, { status: 409 });
+    if (!security.setup_completed || !security.pin_hash) return NextResponse.json({ error: "请先完成应用初始化", code: "SETUP_REQUIRED" }, { status: 409 });
     if (security.locked_until && new Date(security.locked_until).getTime() > Date.now()) return NextResponse.json({ error: "多次输入失败，请稍后再试" }, { status: 423 });
 
     if (!(await verifyPin(parsed.data.pin, security.pin_hash))) {

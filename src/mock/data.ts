@@ -18,12 +18,12 @@ export const meals: Meal[] = [
 ];
 
 export const workoutExercises: WorkoutExercise[] = [
-  { id: "bench", name: "杠铃卧推", focus: "胸 · Compound", sets: 3, reps: "6–8", rest: 150, last: "45kg · 8 / 8 / 7", color: "purple" },
-  { id: "incline", name: "上斜哑铃卧推", focus: "胸 · Upper", sets: 3, reps: "8–12", rest: 120, last: "18kg · 10 / 9 / 8", color: "green" },
-  { id: "dip", name: "双杠臂屈伸", focus: "三头 · Compound", sets: 2, reps: "8–12", rest: 120, last: "自重 · 10 / 9", color: "blue" },
-  { id: "fly", name: "器械夹胸", focus: "胸 · Isolation", sets: 2, reps: "10–15", rest: 75, last: "35kg · 12 / 11", color: "purple" },
-  { id: "raise", name: "哑铃侧平举", focus: "肩 · Isolation", sets: 4, reps: "12–20", rest: 60, last: "8kg · 16 / 15 / 14 / 13", color: "green" },
-  { id: "extension", name: "绳索过头臂屈伸", focus: "三头 · Isolation", sets: 3, reps: "10–15", rest: 75, last: "20kg · 12 / 11 / 10", color: "blue" },
+  { id: "bench", name: "杠铃卧推", focus: "胸 · 复合动作", sets: 3, reps: "6–8", rest: 150, last: "45kg · 8 / 8 / 7", color: "purple" },
+  { id: "incline", name: "上斜哑铃卧推", focus: "胸 · 上胸", sets: 3, reps: "8–12", rest: 120, last: "18kg · 10 / 9 / 8", color: "green" },
+  { id: "dip", name: "双杠臂屈伸", focus: "三头 · 复合动作", sets: 2, reps: "8–12", rest: 120, last: "自重 · 10 / 9", color: "blue" },
+  { id: "fly", name: "器械夹胸", focus: "胸 · 孤立动作", sets: 2, reps: "10–15", rest: 75, last: "35kg · 12 / 11", color: "purple" },
+  { id: "raise", name: "哑铃侧平举", focus: "肩 · 孤立动作", sets: 4, reps: "12–20", rest: 60, last: "8kg · 16 / 15 / 14 / 13", color: "green" },
+  { id: "extension", name: "绳索过头臂屈伸", focus: "三头 · 孤立动作", sets: 3, reps: "10–15", rest: 75, last: "20kg · 12 / 11 / 10", color: "blue" },
 ];
 
 export const timeline = [

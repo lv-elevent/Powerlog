@@ -24,7 +24,7 @@ export default function UnlockPage() {
         const payload = (await response.json().catch(() => ({}))) as { error?: string; code?: string };
         if (response.ok) { router.replace("/today"); return; }
         setError(true);
-        setMessage(payload.code === "SETUP_REQUIRED" ? "请先完成 App 初始化" : payload.error ?? "PIN 不正确");
+        setMessage(payload.code === "SETUP_REQUIRED" ? "请先完成应用初始化" : payload.error ?? "PIN 不正确");
         setTimeout(() => setPin(""), 450);
       }).catch(() => { setError(true); setMessage("网络异常，请稍后重试"); setTimeout(() => setPin(""), 450); }).finally(() => setBusy(false));
     }
@@ -33,7 +33,7 @@ export default function UnlockPage() {
   return <main className="flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_20%_10%,#dbeafe,transparent_35%),radial-gradient(circle_at_85%_80%,#eff6ff,transparent_34%),#f8fafc] px-6">
     <div className="w-full max-w-[390px] min-w-0 overflow-hidden text-center">
       <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-[28px] bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-[0_16px_32px_rgba(37,99,235,.25)]"><Sparkles size={46} strokeWidth={1.5} /></div>
-      <h1 className="text-3xl font-bold tracking-tight">Personal Daily OS</h1>
+      <h1 className="text-3xl font-bold tracking-tight">个人每日系统</h1>
       <p className="mt-3 text-lg text-slate-500">输入私人 PIN</p>
       <div className="my-8 flex justify-center gap-5">{[0, 1, 2, 3].map(index => <span key={index} className={`h-4 w-4 rounded-full border-[3px] ${pin.length > index ? "border-blue-600 bg-blue-600" : "border-blue-300 bg-transparent"} ${error ? "border-red-400" : ""}`} />)}</div>
       {error && <p className="mb-4 text-sm font-medium text-red-500">{message}</p>}

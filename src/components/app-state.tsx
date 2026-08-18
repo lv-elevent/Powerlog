@@ -7,6 +7,7 @@ import { mapGoal, mapMeal, mapMealToUi } from "@/services/nutrition-service";
 import type { BodyMeasurement, Expense, Meal, NutritionGoal } from "@/types";
 
 interface AppStateValue {
+  recordDate: string;
   water: number;
   expenses: Expense[];
   body: BodyMeasurement;
@@ -54,7 +55,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { void refreshBackendState(); }, [refreshBackendState]);
 
   const value = useMemo<AppStateValue>(() => ({
-    water, expenses, body, meals, nutritionGoal, workout, notes, backendError, reload: refreshBackendState,
+    recordDate: date, water, expenses, body, meals, nutritionGoal, workout, notes, backendError, reload: refreshBackendState,
     addWater: async amount => { const result = await addWaterLog({ date, amountMl: amount }); if (!result) { setWater(current => current + amount); return; } await refreshBackendState(); },
     addExpense: async expense => { const result = await persistExpense({ date, amount: expense.amount, categoryName: expense.category, note: expense.note }); if (!result) { setExpenses(current => [...current, { ...expense, id: `offline-${crypto.randomUUID()}`, time: new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) }]); return; } await refreshBackendState(); },
     addBody: async next => { const result = await saveBodyMeasurement({ date, weightKg: next.weight, measuredAt: new Date().toISOString() }); if (!result) { setBody(next); return; } await refreshBackendState(); },
