@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { BarChart3, CalendarDays, Droplets, Dumbbell, Flame, Moon, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -26,7 +27,7 @@ export default function InsightsPage() {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { let active = true; setLoading(true); setError(null); getInsightsData(range, category).then(result => { if (active) setPayload(result); }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : "数据暂时无法加载"); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [range, category]);
   return <>
-    <PageIntro eyebrow="趋势分析" title="数据" subtitle="看趋势，比看某一天更重要。" action={<button className="secondary-button h-11 w-11 p-0" aria-label="选择日期"><CalendarDays size={20} /></button>} />
+    <PageIntro eyebrow="趋势分析" title="数据" subtitle="看趋势，比看某一天更重要。" action={<Link href="/history" className="secondary-button h-11 w-11 p-0" aria-label="打开历史日历"><CalendarDays size={20} /></Link>} />
     <div className="app-card grid grid-cols-4 gap-1 p-1">{ranges.map(item => <button key={item.key} onClick={() => setRange(item.key)} className={`rounded-2xl py-3 text-sm font-semibold ${range === item.key ? "bg-white text-blue-600 shadow-soft" : "text-slate-500"}`}>{item.label}</button>)}</div>
     <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{categories.map(({ key, label, icon: Icon }) => <button key={key} onClick={() => setCategory(key)} className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold ${category === key ? "bg-blue-600 text-white shadow-md" : "bg-white text-slate-500"}`}><Icon size={18} />{label}</button>)}</div>
     {loading && <div className="app-card mt-5 p-8 text-center text-sm text-slate-500">正在读取真实数据…</div>}
