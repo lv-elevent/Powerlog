@@ -7,3 +7,5 @@ node_modules/
 .chrome-debug-profile/
 chrome-cdp-profile*/
 npm-debug.log*
+
+.vercel
