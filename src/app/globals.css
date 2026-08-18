@@ -24,6 +24,7 @@ body {
   background: var(--background);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
   font-variant-numeric: tabular-nums;
+  min-height: 100dvh;
   min-width: 0;
   overflow-x: hidden;
 }
@@ -51,7 +52,26 @@ a { color: inherit; text-decoration: none; }
 .progress-track { height: 8px; overflow: hidden; border-radius: 999px; background: #e9eef5; }
 .progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #60a5fa); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.mobile-bottom-nav { width: 100%; }
 .sheet-enter { animation: sheet-in .24s ease-out both; }
 @keyframes sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes pulse-soft { 0%, 100% { opacity: .65; } 50% { opacity: 1; } }
 .pulse-soft { animation: pulse-soft 1.5s ease-in-out infinite; }
+
+/* Android 浏览器/PWA 在某些设备上会使用比屏幕更宽的布局视口。
+   触控设备必须使用全宽容器，避免 520px 外壳被缩成居中的窄栏。 */
+@media (pointer: coarse) {
+  .mobile-frame,
+  .page-wrap {
+    width: 100%;
+    max-width: none;
+  }
+
+  .mobile-bottom-nav {
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: none;
+    transform: none;
+  }
+}
