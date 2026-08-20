@@ -176,10 +176,13 @@ export interface Food {
 }
 
 export type FoodWeightBasis = "cooked" | "raw" | "edible_cooked" | "packaged" | "serving" | "other";
+export type FoodSource = "custom" | "usda_fdc";
 
 export interface FoodLibraryItem {
   id: string;
   name: string;
+  source: FoodSource;
+  sourceId: string | null;
   brand: string | null;
   servingName: string | null;
   servingWeightG: number | null;

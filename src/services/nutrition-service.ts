@@ -1,5 +1,5 @@
 import type { FoodLibraryRow, MealItemRow, MealRow, MealTemplateItemRow, MealTemplateRow, MealTotalRow, NutritionGoalRow } from "@/lib/db/repositories";
-import type { FoodLibraryItem, Meal, MealTemplateRecord, NutritionGoalRecord, NutritionMealRecord, NutritionTotals } from "@/types";
+import type { FoodLibraryItem, FoodSource, FoodWeightBasis, Meal, MealTemplateRecord, NutritionGoalRecord, NutritionMealRecord, NutritionTotals } from "@/types";
 
 async function request<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
   const response = await fetch(input, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
@@ -9,7 +9,22 @@ async function request<T>(input: RequestInfo | URL, init?: RequestInit): Promise
 }
 
 export function mapFood(row: FoodLibraryRow): FoodLibraryItem {
-  return { id: row.id, name: row.name, brand: row.brand, servingName: row.serving_name, servingWeightG: row.serving_weight_g === null ? null : Number(row.serving_weight_g), weightBasis: row.weight_basis, caloriesPer100G: Number(row.calories_per_100g), proteinPer100G: Number(row.protein_per_100g), carbsPer100G: Number(row.carbs_per_100g), fatPer100G: Number(row.fat_per_100g), fiberPer100G: Number(row.fiber_per_100g), isFavorite: row.is_favorite, isActive: row.is_active, note: row.note };
+  return { id: row.id, name: row.name, source: row.source ?? "custom", sourceId: row.source_id ?? null, brand: row.brand, servingName: row.serving_name, servingWeightG: row.serving_weight_g === null ? null : Number(row.serving_weight_g), weightBasis: row.weight_basis, caloriesPer100G: Number(row.calories_per_100g), proteinPer100G: Number(row.protein_per_100g), carbsPer100G: Number(row.carbs_per_100g), fatPer100G: Number(row.fat_per_100g), fiberPer100G: Number(row.fiber_per_100g), isFavorite: row.is_favorite, isActive: row.is_active, note: row.note };
+}
+
+export interface ExternalFoodSearchResult {
+  source: FoodSource;
+  sourceId: string;
+  displayName: string;
+  sourceName: string;
+  dataType: string;
+  weightBasis: FoodWeightBasis;
+  caloriesPer100G: number;
+  proteinPer100G: number;
+  carbsPer100G: number;
+  fatPer100G: number;
+  fiberPer100G: number;
+  isImported: boolean;
 }
 
 export function mapGoal(row: NutritionGoalRow | null): NutritionGoalRecord | null {
@@ -33,6 +48,8 @@ export function mapTemplate(group: { template: MealTemplateRow; items: MealTempl
 }
 
 export async function getFoods(search?: string, includeInactive = false): Promise<FoodLibraryItem[]> { const query = new URLSearchParams(); if (search) query.set("search", search); if (includeInactive) query.set("includeInactive", "true"); const rows = await request<FoodLibraryRow[]>(`/api/foods${query.toString() ? `?${query}` : ""}`, { cache: "no-store" }); return rows.map(mapFood); }
+export async function searchExternalFoods(query: string): Promise<ExternalFoodSearchResult[]> { const params = new URLSearchParams({ query }); return request<ExternalFoodSearchResult[]>(`/api/foods/external-search?${params.toString()}`, { cache: "no-store" }); }
+export async function importExternalFood(input: { source: "usda_fdc"; sourceId: string; displayName?: string }): Promise<FoodLibraryItem> { return mapFood(await request<FoodLibraryRow>("/api/foods/import", { method: "POST", body: JSON.stringify(input) })); }
 export async function createFood(input: { name: string; brand?: string | null; servingName?: string | null; servingWeightG?: number | null; weightBasis: FoodLibraryItem["weightBasis"]; caloriesPer100G: number; proteinPer100G: number; carbsPer100G: number; fatPer100G: number; fiberPer100G: number; note?: string | null }): Promise<FoodLibraryItem> { return mapFood(await request<FoodLibraryRow>("/api/foods", { method: "POST", body: JSON.stringify(input) })); }
 export async function updateFood(id: string, input: Partial<Parameters<typeof createFood>[0]> & { isFavorite?: boolean; isActive?: boolean }): Promise<FoodLibraryItem> { return mapFood(await request<FoodLibraryRow>(`/api/foods/${id}`, { method: "PATCH", body: JSON.stringify(input) })); }
 export async function deactivateFood(id: string): Promise<FoodLibraryItem> { return mapFood(await request<FoodLibraryRow>(`/api/foods/${id}`, { method: "DELETE" })); }

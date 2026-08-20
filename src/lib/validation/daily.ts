@@ -28,6 +28,8 @@ const foodFields = {
 };
 export const createFoodSchema = z.object(foodFields);
 export const updateFoodSchema = createFoodSchema.partial().extend({ isFavorite: z.boolean().optional(), isActive: z.boolean().optional() });
+export const foodExternalSearchSchema = z.object({ query: z.string().trim().min(2, "搜索词至少需要 2 个字符").max(80, "搜索词过长") });
+export const foodImportSchema = z.object({ source: z.literal("usda_fdc"), sourceId: z.string().regex(/^\d{1,20}$/, "USDA 食品编号无效"), displayName: z.string().trim().min(1).max(200).optional() });
 export const mealItemSchema = z.object({ foodId: z.string().uuid(), quantityG: z.number().positive().max(100000), servingCount: z.number().positive().max(1000).nullable().optional() });
 export const mealSchema = z.object({ date: dateSchema, mealType: nutritionMealTypeSchema, title: z.string().max(200).nullable().optional(), eatenAt: z.string().datetime().optional(), note: z.string().max(2000).nullable().optional(), sourceTemplateId: z.string().uuid().nullable().optional(), clientIdempotencyKey: z.string().min(1).max(120).optional(), items: z.array(mealItemSchema).min(1).max(100) });
 export const templateItemSchema = z.object({ foodId: z.string().uuid(), quantityG: z.number().positive().max(100000).nullable().optional(), servingCount: z.number().positive().max(1000).nullable().optional(), sortOrder: z.number().int().nonnegative() }).refine(value => value.quantityG !== null && value.quantityG !== undefined || value.servingCount !== null && value.servingCount !== undefined, "template item requires quantityG or servingCount");

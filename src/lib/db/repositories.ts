@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { COMMON_FOODS } from "@/lib/common-foods";
 
 export interface AppSecurityRow {
   id: number;
@@ -83,6 +84,8 @@ export interface DailyNoteRow {
 export interface FoodLibraryRow {
   id: string;
   name: string;
+  source?: "custom" | "usda_fdc";
+  source_id?: string | null;
   brand: string | null;
   serving_name: string | null;
   serving_weight_g: number | null;
@@ -400,18 +403,46 @@ export async function listDailyNotes(recordDate: string): Promise<DailyNoteRow[]
 }
 
 export async function listFoods(search?: string, includeInactive = false): Promise<FoodLibraryRow[]> {
+  await ensureCommonFoods();
   let query = getSupabaseAdmin().from("food_library").select("*").order("name", { ascending: true });
   if (!includeInactive) query = query.eq("is_active", true);
   if (search) query = query.ilike("name", `%${search}%`);
   return unwrap(await query) as FoodLibraryRow[];
 }
 
+let commonFoodsReady = false;
+
+async function ensureCommonFoods(): Promise<void> {
+  if (commonFoodsReady) return;
+
+  const client = getSupabaseAdmin();
+  const sourceIds = COMMON_FOODS.map(food => food.source_id);
+  const existingResult = await client.from("food_library").select("source_id").eq("source", "custom").in("source_id", sourceIds);
+  if (existingResult.error) throw new Error(existingResult.error.message);
+
+  const existingIds = new Set((existingResult.data ?? []).map(row => row.source_id));
+  const missingFoods = COMMON_FOODS.filter(food => !existingIds.has(food.source_id));
+  if (missingFoods.length) {
+    const result = await client.from("food_library").insert(missingFoods);
+    if (result.error && !result.error.message.toLowerCase().includes("duplicate key")) throw new Error(result.error.message);
+  }
+  commonFoodsReady = true;
+}
+
 export async function getFood(foodId: string): Promise<FoodLibraryRow> {
   return unwrap(await getSupabaseAdmin().from("food_library").select("*").eq("id", foodId).single());
 }
 
+export async function findFoodBySource(source: "custom" | "usda_fdc", sourceId: string): Promise<FoodLibraryRow | null> {
+  const result = await getSupabaseAdmin().from("food_library").select("*").eq("source", source).eq("source_id", sourceId).maybeSingle();
+  if (result.error) throw new Error(result.error.message);
+  return result.data as FoodLibraryRow | null;
+}
+
 export interface FoodLibraryInput {
   name: string;
+  source?: FoodLibraryRow["source"];
+  source_id?: string | null;
   brand?: string | null;
   serving_name?: string | null;
   serving_weight_g?: number | null;

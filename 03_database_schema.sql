@@ -133,6 +133,8 @@ CREATE TABLE IF NOT EXISTS cardio_sessions (
 CREATE TABLE IF NOT EXISTS food_library (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
+  source text NOT NULL DEFAULT 'custom' CHECK (source IN ('custom', 'usda_fdc')),
+  source_id text,
   brand text,
   serving_name text,
   serving_weight_g numeric(10,2) CHECK (
@@ -157,6 +159,10 @@ CREATE TABLE IF NOT EXISTS food_library (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_food_library_source_id
+  ON food_library(source, source_id)
+  WHERE source_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS meal_templates (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

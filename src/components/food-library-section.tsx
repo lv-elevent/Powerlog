@@ -2,8 +2,9 @@
 
 import { Heart, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { createFood, deactivateFood, getFoods, updateFood } from "@/services/nutrition-service";
+import { createFood, deactivateFood, getFoods, importExternalFood, searchExternalFoods, updateFood } from "@/services/nutrition-service";
 import { Badge, SectionHeader } from "@/components/ui";
+import type { ExternalFoodSearchResult } from "@/services/nutrition-service";
 import type { FoodLibraryItem, FoodWeightBasis } from "@/types";
 
 const basisOptions: Array<{ value: FoodWeightBasis; label: string }> = [
@@ -30,6 +31,10 @@ export function FoodLibraryPanel({ onCreated }: { onCreated?: () => void }) {
   const [carbs, setCarbs] = useState("");
   const [fat, setFat] = useState("");
   const [fiber, setFiber] = useState("");
+  const [externalResults, setExternalResults] = useState<ExternalFoodSearchResult[]>([]);
+  const [externalLoading, setExternalLoading] = useState(false);
+  const [externalError, setExternalError] = useState("");
+  const [importingId, setImportingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -41,6 +46,25 @@ export function FoodLibraryPanel({ onCreated }: { onCreated?: () => void }) {
   }, [search]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    const query = search.trim();
+    if (query.length < 2) {
+      setExternalResults([]);
+      setExternalError("");
+      setExternalLoading(false);
+      return;
+    }
+    setExternalLoading(true);
+    setExternalError("");
+    const timer = window.setTimeout(() => {
+      void searchExternalFoods(query)
+        .then(setExternalResults)
+        .catch(reason => setExternalError(reason instanceof Error ? reason.message : "在线食品搜索失败"))
+        .finally(() => setExternalLoading(false));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const reset = () => {
     setName(""); setBrand(""); setServingName("1 份"); setServingWeightG("");
@@ -54,6 +78,7 @@ export function FoodLibraryPanel({ onCreated }: { onCreated?: () => void }) {
     }
     const numberOrZero = (value: string) => value.trim() === "" ? 0 : Number(value);
     setSaving(true);
+    setError("");
     try {
       await createFood({ name: name.trim(), brand: brand.trim() || null, servingName: servingName.trim() || null, servingWeightG: servingWeightG.trim() === "" ? null : Number(servingWeightG), weightBasis, caloriesPer100G: numberOrZero(calories), proteinPer100G: numberOrZero(protein), carbsPer100G: numberOrZero(carbs), fatPer100G: numberOrZero(fat), fiberPer100G: numberOrZero(fiber) });
       reset();
@@ -63,6 +88,20 @@ export function FoodLibraryPanel({ onCreated }: { onCreated?: () => void }) {
       setError(reason instanceof Error ? reason.message : "食品保存失败");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const importFood = async (result: ExternalFoodSearchResult) => {
+    setImportingId(result.sourceId);
+    setExternalError("");
+    try {
+      await importExternalFood({ source: "usda_fdc", sourceId: result.sourceId, displayName: result.displayName });
+      setExternalResults(current => current.map(item => item.sourceId === result.sourceId ? { ...item, isImported: true } : item));
+      await load();
+    } catch (reason) {
+      setExternalError(reason instanceof Error ? reason.message : "食品导入失败");
+    } finally {
+      setImportingId(null);
     }
   };
 
@@ -87,8 +126,9 @@ export function FoodLibraryPanel({ onCreated }: { onCreated?: () => void }) {
 
     <div className="app-card mt-4 p-5">
       <SectionHeader title="食品库" />
-      <input className="field" placeholder="搜索食品" value={search} onChange={event => setSearch(event.target.value)} />
-      {!foods.length ? <div className="mt-5 rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">食品库还没有匹配食品。先添加第一种食品，再创建餐食模板。</div> : <div className="mt-3 divide-y divide-slate-100">{foods.map(food => <div key={food.id} className={`py-4 ${!food.isActive ? "opacity-50" : ""}`}><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><div className="font-semibold">{food.name}</div>{food.isFavorite && <Badge tone="orange">常用</Badge>}</div><div className="mt-1 text-sm text-slate-500">{basisOptions.find(item => item.value === food.weightBasis)?.label ?? "其他"} · {food.servingName ?? "未设置常用份量"}{food.servingWeightG ? ` = ${food.servingWeightG}g` : ""}</div><div className="mt-1 text-xs text-slate-400">{food.caloriesPer100G} kcal / 100g · 蛋白质 {food.proteinPer100G}g · 碳水 {food.carbsPer100G}g · 脂肪 {food.fatPer100G}g</div></div><button aria-label={`收藏${food.name}`} onClick={() => void toggleFavorite(food)} className="rounded-lg p-2"><Heart size={17} className={food.isFavorite ? "fill-orange-400 text-orange-400" : "text-slate-300"} /></button>{food.isActive && <button aria-label={`停用${food.name}`} onClick={() => void deactivate(food)} className="rounded-lg p-2 text-slate-400 hover:text-red-500"><Trash2 size={17} /></button>}</div></div>)}</div>}
+      <input className="field" placeholder="搜索食品（支持中文或英文）" value={search} onChange={event => setSearch(event.target.value)} />
+      {search.trim().length >= 2 && <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4"><div className="flex items-center justify-between gap-3"><div><div className="font-semibold text-blue-900">食品搜索结果</div><div className="mt-1 text-xs text-blue-700">已内置 200 种常见食品；配置 USDA Key 后可继续搜索更多数据</div></div>{externalLoading && <span className="text-xs text-blue-600">搜索中…</span>}</div>{externalError && <div className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">{externalError}</div>}{!externalLoading && !externalResults.length && !externalError && <div className="mt-3 text-sm text-blue-700">暂未找到匹配食品，仍可在上方创建自定义食品。</div>}{externalResults.map(result => <div key={result.sourceId} className="mt-3 rounded-2xl bg-white p-3 shadow-sm"><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><div className="font-semibold text-slate-900">{result.displayName}</div><Badge tone="blue">{result.weightBasis === "cooked" ? "熟重" : result.weightBasis === "raw" ? "生重" : "其他"}</Badge></div><div className="mt-1 text-xs leading-5 text-slate-500">{result.source === "usda_fdc" ? `USDA：${result.sourceName}` : "内置参考数据 · 每 100g"}</div><div className="mt-2 text-xs text-slate-500">{result.caloriesPer100G} kcal · 蛋白质 {result.proteinPer100G}g · 碳水 {result.carbsPer100G}g · 脂肪 {result.fatPer100G}g</div></div><button disabled={result.isImported || importingId === result.sourceId} onClick={() => void importFood(result)} className="secondary-button min-h-9 shrink-0 px-3 text-xs disabled:opacity-60">{result.isImported ? "已在食品库" : importingId === result.sourceId ? "导入中…" : "加入食品库"}</button></div></div>)}</div>}
+      {!foods.length ? <div className="mt-5 rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">食品库还没有匹配食品。先添加第一种食品，再创建餐食模板。</div> : <div className="mt-3 divide-y divide-slate-100">{foods.map(food => <div key={food.id} className={`py-4 ${!food.isActive ? "opacity-50" : ""}`}><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><div className="font-semibold">{food.name}</div>{food.source === "usda_fdc" && <Badge tone="blue">USDA 数据</Badge>}{food.isFavorite && <Badge tone="orange">常用</Badge>}</div><div className="mt-1 text-sm text-slate-500">{basisOptions.find(item => item.value === food.weightBasis)?.label ?? "其他"} · {food.servingName ?? "未设置常用份量"}{food.servingWeightG ? ` = ${food.servingWeightG}g` : ""}</div><div className="mt-1 text-xs text-slate-400">{food.caloriesPer100G} kcal / 100g · 蛋白质 {food.proteinPer100G}g · 碳水 {food.carbsPer100G}g · 脂肪 {food.fatPer100G}g</div></div><button aria-label={`收藏${food.name}`} onClick={() => void toggleFavorite(food)} className="rounded-lg p-2"><Heart size={17} className={food.isFavorite ? "fill-orange-400 text-orange-400" : "text-slate-300"} /></button>{food.isActive && <button aria-label={`停用${food.name}`} onClick={() => void deactivate(food)} className="rounded-lg p-2 text-slate-400 hover:text-red-500"><Trash2 size={17} /></button>}</div></div>)}</div>}
     </div>
   </>;
 }
