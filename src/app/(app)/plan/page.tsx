@@ -5,14 +5,14 @@ import { CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Clock3, Dumb
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { currentRecordDate } from "@/services/backend-service";
-import { getCachedWorkoutPlans, refreshWorkoutPlans, startWorkout } from "@/services/workout-service";
+import { createOptimisticWorkoutSession, getCachedWorkoutPlans, refreshWorkoutPlans, syncWorkoutSession } from "@/services/workout-service";
 import { getPlanTodos, savePlanTodos, saveWorkoutPlanOverride } from "@/services/plan-service";
 import type { TimelineItem, WorkoutPlanExerciseRecord, WorkoutPlanRecord } from "@/types";
 import { Badge, PageIntro, SectionHeader } from "@/components/ui";
 import { mockToday } from "@/mock/data";
 
 function dayLabel(name: string): string {
-  return name.replace("Push", "推").replace("Pull", "拉").replace("Legs", "腿").replace("Core", "核心").replace("Rest", "休息");
+  return name.toLowerCase().replace("push", "推").replace("pull", "拉").replace("legs", "腿").replace("core", "核心").replace("rest", "休息");
 }
 
 export default function PlanPage() {
@@ -47,13 +47,14 @@ export default function PlanPage() {
 
   const activeDay = useMemo(() => plan?.days.find(day => day.id === dayId) ?? plan?.days.find(day => !day.isRestDay), [dayId, plan]);
 
-  const start = async (nextDayId = activeDay?.id) => {
+  const start = (nextDayId = activeDay?.id) => {
     if (!plan || !nextDayId) return;
     setLoading(true);
     setError("");
     try {
-      const session = await startWorkout({ recordDate: currentRecordDate(), planId: plan.id, planDayId: nextDayId });
+      const session = createOptimisticWorkoutSession({ recordDate: currentRecordDate(), plan, planDayId: nextDayId });
       router.push("/workout/" + session.id);
+      void syncWorkoutSession(session.id, { recordDate: currentRecordDate(), planId: plan.id, planDayId: nextDayId });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "训练启动失败");
     } finally {
@@ -172,7 +173,7 @@ export default function PlanPage() {
       </div>
     </section>
 
-    <div className="app-card mt-4 p-5"><div className="flex items-center gap-3"><div className="icon-tile bg-blue-50 text-blue-600"><Clock3 size={20} /></div><div><div className="font-semibold">训练小提示</div><div className="mt-1 text-sm text-slate-500">先完成热身，再从第一个正式组开始记录。</div></div></div><button onClick={() => void start()} disabled={loading || !activeDay || editingPlan} className="primary-button mt-5 w-full"><Dumbbell size={18} />{loading ? "启动中…" : "开始推训练"}</button></div>
+    <div className="app-card mt-4 p-5"><div className="flex items-center gap-3"><div className="icon-tile bg-blue-50 text-blue-600"><Clock3 size={20} /></div><div><div className="font-semibold">训练小提示</div><div className="mt-1 text-sm text-slate-500">先完成热身，再从第一个正式组开始记录。</div></div></div><button onClick={() => start()} disabled={loading || !activeDay || editingPlan} className="primary-button mt-5 w-full"><Dumbbell size={18} />{loading ? "进入训练…" : `开始${dayLabel(activeDay?.name ?? "Push")}训练`}</button></div>
     <div className="mt-6"><SectionHeader title="计划原则" /><div className="grid gap-3 sm:grid-cols-3"><Info title="保持顺序" text="动作顺序影响今天的发力状态。" icon={<GripVertical size={18} />} /><Info title="记录每组" text="重量、次数与剩余次数都会成为下一次提示。" icon={<Check size={18} />} /><Info title="只影响未来" text="修改计划不会改变历史训练快照。" icon={<Clock3 size={18} />} /></div></div>
   </>;
 }

@@ -48,14 +48,14 @@ export function FoodLibraryPanel({ onCreated }: { onCreated?: () => void }) {
   };
 
   const save = async () => {
-    const values = [servingWeightG, calories, protein, carbs, fat, fiber];
-    if (!name.trim() || values.some(value => value.trim() === "")) {
-      setError("请填写食品名称、常用份量重量和全部营养数据。");
+    if (!name.trim()) {
+      setError("请填写食品名称。");
       return;
     }
+    const numberOrZero = (value: string) => value.trim() === "" ? 0 : Number(value);
     setSaving(true);
     try {
-      await createFood({ name: name.trim(), brand: brand.trim() || null, servingName: servingName.trim() || null, servingWeightG: Number(servingWeightG), weightBasis, caloriesPer100G: Number(calories), proteinPer100G: Number(protein), carbsPer100G: Number(carbs), fatPer100G: Number(fat), fiberPer100G: Number(fiber) });
+      await createFood({ name: name.trim(), brand: brand.trim() || null, servingName: servingName.trim() || null, servingWeightG: servingWeightG.trim() === "" ? null : Number(servingWeightG), weightBasis, caloriesPer100G: numberOrZero(calories), proteinPer100G: numberOrZero(protein), carbsPer100G: numberOrZero(carbs), fatPer100G: numberOrZero(fat), fiberPer100G: numberOrZero(fiber) });
       reset();
       await load();
       onCreated?.();
@@ -73,7 +73,7 @@ export function FoodLibraryPanel({ onCreated }: { onCreated?: () => void }) {
     {error && <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
     <div className="app-card mt-6 p-5">
       <SectionHeader title="新增食品" />
-      <p className="mb-4 text-sm leading-6 text-slate-500">营养数据统一按照 100g 记录；常用份量只用于快速填写。</p>
+      <p className="mb-4 text-sm leading-6 text-slate-500">营养数据统一按照 100g 记录；营养字段留空按 0 保存，常用份量只用于快速填写。</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="食品名称" value={name} onChange={setName} placeholder="例如：鸡胸肉" />
         <Field label="品牌（可选）" value={brand} onChange={setBrand} placeholder="例如：自制" />
