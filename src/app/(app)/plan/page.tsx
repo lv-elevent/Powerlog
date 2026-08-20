@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, Check, ChevronRight, Clock3, Dumbbell, GripVertical, PencilLine, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Clock3, Dumbbell, GripVertical, PencilLine, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { currentRecordDate } from "@/services/backend-service";
-import { getWorkoutPlans, startWorkout } from "@/services/workout-service";
+import { getCachedWorkoutPlans, refreshWorkoutPlans, startWorkout } from "@/services/workout-service";
+import { getPlanTodos, savePlanTodos, saveWorkoutPlanOverride } from "@/services/plan-service";
 import type { TimelineItem, WorkoutPlanExerciseRecord, WorkoutPlanRecord } from "@/types";
 import { Badge, PageIntro, SectionHeader } from "@/components/ui";
 import { mockToday } from "@/mock/data";
@@ -19,6 +20,7 @@ export default function PlanPage() {
   const [plan, setPlan] = useState<WorkoutPlanRecord | null>(null);
   const [dayId, setDayId] = useState<string>();
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(true);
   const [editingPlan, setEditingPlan] = useState(false);
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [todos, setTodos] = useState<TimelineItem[]>(() => mockToday.timeline.map(item => ({ ...item, completed: item.completed ?? false })));
@@ -26,7 +28,15 @@ export default function PlanPage() {
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    void getWorkoutPlans()
+    const cached = getCachedWorkoutPlans()[0] ?? null;
+    const fallbackTodos = mockToday.timeline.map(item => ({ ...item, completed: item.completed ?? false }));
+    if (cached) {
+      setPlan(cached);
+      setDayId(cached.days.find(day => !day.isRestDay)?.id);
+    }
+    setTodos(getPlanTodos(fallbackTodos));
+    setSyncing(!cached);
+    void refreshWorkoutPlans()
       .then(plans => {
         const nextPlan = plans[0] ?? null;
         setPlan(nextPlan);
@@ -52,13 +62,29 @@ export default function PlanPage() {
   };
 
   const updateTodo = (id: string, patch: Partial<Pick<TimelineItem, "time" | "title" | "detail" | "completed">>) => {
-    setTodos(current => current.map(item => item.id === id ? { ...item, ...patch } : item));
+    setTodos(current => {
+      const next = current.map(item => item.id === id ? { ...item, ...patch } : item);
+      savePlanTodos(next);
+      return next;
+    });
   };
 
   const addTodo = () => {
     const id = "todo-" + Date.now();
-    setTodos(current => [...current, { id, time: "09:00", title: "新的待办", detail: "填写今天要完成的事情", kind: "note", completed: false }]);
+    setTodos(current => {
+      const next = [...current, { id, time: "09:00", title: "新的待办", detail: "填写今天要完成的事情", kind: "note" as const, completed: false }];
+      savePlanTodos(next);
+      return next;
+    });
     setEditingTodoId(id);
+  };
+
+  const deleteTodo = (id: string) => {
+    setTodos(current => {
+      const next = current.filter(item => item.id !== id);
+      savePlanTodos(next);
+      return next;
+    });
   };
 
   const updateExercise = (id: string, patch: Partial<WorkoutPlanExerciseRecord>) => {
@@ -68,13 +94,43 @@ export default function PlanPage() {
     } : current);
   };
 
+  const addExercise = () => {
+    const id = `local-${crypto.randomUUID()}`;
+    setPlan(current => current && activeDay ? { ...current, days: current.days.map(day => day.id === activeDay.id ? { ...day, exercises: [...day.exercises, { id, exerciseId: id, exercise: { id, name: "自定义动作", category: "strength", primaryMuscle: "自定义", equipment: null, defaultRestSeconds: 90, isActive: true }, sortOrder: day.exercises.length, targetSets: 3, repMin: 8, repMax: 12, targetRir: 2, restSeconds: 90, isOptional: false }] } : day) } : current);
+  };
+
+  const updateExerciseName = (id: string, name: string) => {
+    setPlan(current => current ? { ...current, days: current.days.map(day => day.id === activeDay?.id ? { ...day, exercises: day.exercises.map(exercise => exercise.id === id ? { ...exercise, exercise: exercise.exercise ? { ...exercise.exercise, name } : exercise.exercise } : exercise) } : day) } : current);
+  };
+
+  const removeExercise = (id: string) => {
+    setPlan(current => current && activeDay ? { ...current, days: current.days.map(day => day.id === activeDay.id ? { ...day, exercises: day.exercises.filter(exercise => exercise.id !== id).map((exercise, index) => ({ ...exercise, sortOrder: index })) } : day) } : current);
+  };
+
+  const moveExercise = (id: string, direction: -1 | 1) => {
+    setPlan(current => {
+      if (!current || !activeDay) return current;
+      return { ...current, days: current.days.map(day => {
+        if (day.id !== activeDay.id) return day;
+        const index = day.exercises.findIndex(exercise => exercise.id === id);
+        const nextIndex = index + direction;
+        if (index < 0 || nextIndex < 0 || nextIndex >= day.exercises.length) return day;
+        const exercises = [...day.exercises];
+        [exercises[index], exercises[nextIndex]] = [exercises[nextIndex], exercises[index]];
+        return { ...day, exercises: exercises.map((exercise, sortOrder) => ({ ...exercise, sortOrder })) };
+      }) };
+    });
+  };
+
   const savePlanEdits = () => {
+    if (plan) saveWorkoutPlanOverride(plan);
     setEditingPlan(false);
-    setNotice("本次编辑已应用到当前页面，刷新后会恢复服务端计划。");
+    setNotice("训练计划已保存，只影响未来训练。");
   };
 
   return <>
     <PageIntro eyebrow="每周节奏" title="训练计划" subtitle="把今天要做的事放在前面，再安排训练。" action={<Link href="/history" className="secondary-button px-3"><CalendarDays size={18} />历史</Link>} />
+    {syncing && <div className="mb-4 rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-700">正在后台同步最新计划，已缓存内容可直接使用。</div>}
     {error && <div className="mb-4 rounded-2xl bg-orange-50 p-4 text-sm text-orange-700">{error}</div>}
     {notice && <div className="mb-4 rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">{notice}</div>}
 
@@ -91,7 +147,7 @@ export default function PlanPage() {
             <button aria-label={todo.completed ? "标记未完成" : "标记完成"} onClick={() => updateTodo(todo.id, { completed: !todo.completed })} className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 " + (todo.completed ? "border-blue-600 bg-blue-600 text-white" : "border-blue-200 text-transparent")}><Check size={17} /></button>
             <div className="min-w-0 flex-1"><div className={"text-xs font-semibold " + (todo.completed ? "text-slate-400 line-through" : "text-slate-400")}>{todo.time}</div><div className={"mt-1 font-semibold " + (todo.completed ? "text-slate-400 line-through" : "text-ink")}>{todo.title}</div><div className="mt-1 text-sm text-slate-500">{todo.detail}</div></div>
             <button aria-label={"编辑" + todo.title} onClick={() => setEditingTodoId(todo.id)} className="rounded-xl p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600"><PencilLine size={17} /></button>
-            <button aria-label={"删除" + todo.title} onClick={() => setTodos(current => current.filter(item => item.id !== todo.id))} className="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"><Trash2 size={17} /></button>
+            <button aria-label={"删除" + todo.title} onClick={() => deleteTodo(todo.id)} className="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"><Trash2 size={17} /></button>
           </div>}
         </div>)}
       </div>
@@ -106,11 +162,12 @@ export default function PlanPage() {
     </section>
 
     <section className="mt-5">
-      <SectionHeader title={"今天 · " + dayLabel(activeDay?.name ?? "Push")} action={<Badge tone="purple">{activeDay?.exercises.length ?? 0} 个动作</Badge>} />
+      <SectionHeader title={"今天 · " + dayLabel(activeDay?.name ?? "Push")} action={<div className="flex items-center gap-2"><Badge tone="purple">{activeDay?.exercises.length ?? 0} 个动作</Badge>{editingPlan && <button onClick={addExercise} className="secondary-button min-h-9 px-3 text-sm"><Plus size={15} />添加动作</button>}</div>} />
       <div className="app-card divide-y divide-slate-100 overflow-hidden">
-        {activeDay?.exercises.map(item => editingPlan ? <div key={item.id} className="space-y-3 p-4">
-          <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><Dumbbell size={19} /></div><div className="min-w-0 flex-1"><div className="font-semibold">{item.exercise?.name}</div><div className="mt-1 text-xs text-slate-400">{item.exercise?.primaryMuscle ?? "力量训练"}</div></div></div>
-          <div className="grid grid-cols-3 gap-2"><label className="muted">组数<input className="field mt-1 px-2" type="number" min="1" value={item.targetSets} onChange={event => updateExercise(item.id, { targetSets: Number(event.target.value) || 1 })} /></label><label className="muted">次数<input className="field mt-1 px-2" type="number" min="1" value={item.repMin ?? 1} onChange={event => updateExercise(item.id, { repMin: Number(event.target.value) || 1 })} /></label><label className="muted">休息<input className="field mt-1 px-2" type="number" min="0" value={item.restSeconds} onChange={event => updateExercise(item.id, { restSeconds: Number(event.target.value) || 0 })} /></label></div>
+        {activeDay?.exercises.map((item, index) => editingPlan ? <div key={item.id} className="space-y-3 p-4">
+          <div className="flex items-center gap-3"><GripVertical size={17} className="text-slate-300" /><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><Dumbbell size={19} /></div><input className="field min-w-0 flex-1" value={item.exercise?.name ?? ""} onChange={event => updateExerciseName(item.id, event.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><label className="muted">组数<input className="field mt-1 px-2" type="number" min="1" value={item.targetSets} onChange={event => updateExercise(item.id, { targetSets: Number(event.target.value) || 1 })} /></label><label className="muted">最少次数<input className="field mt-1 px-2" type="number" min="1" value={item.repMin ?? 1} onChange={event => updateExercise(item.id, { repMin: Number(event.target.value) || 1 })} /></label><label className="muted">最多次数<input className="field mt-1 px-2" type="number" min="1" value={item.repMax ?? item.repMin ?? 1} onChange={event => updateExercise(item.id, { repMax: Number(event.target.value) || 1 })} /></label><label className="muted">休息（秒）<input className="field mt-1 px-2" type="number" min="0" value={item.restSeconds} onChange={event => updateExercise(item.id, { restSeconds: Number(event.target.value) || 0 })} /></label></div>
+          <div className="flex flex-wrap items-center justify-end gap-2"><button onClick={() => updateExercise(item.id, { targetRir: Math.max(0, (item.targetRir ?? 0) - 1) })} className="secondary-button min-h-9 px-3 text-xs">RIR −</button><span className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">目标 RIR {item.targetRir ?? 0}</span><button onClick={() => updateExercise(item.id, { targetRir: (item.targetRir ?? 0) + 1 })} className="secondary-button min-h-9 px-3 text-xs">RIR +</button><button aria-label="上移动作" onClick={() => moveExercise(item.id, -1)} disabled={index === 0} className="rounded-xl p-2 text-slate-400 disabled:opacity-30"><ChevronUp size={18} /></button><button aria-label="下移动作" onClick={() => moveExercise(item.id, 1)} disabled={index === activeDay.exercises.length - 1} className="rounded-xl p-2 text-slate-400 disabled:opacity-30"><ChevronDown size={18} /></button><button aria-label="删除动作" onClick={() => removeExercise(item.id)} className="rounded-xl p-2 text-red-400 hover:bg-red-50"><Trash2 size={17} /></button></div>
         </div> : <button onClick={() => void start(activeDay.id)} key={item.id} className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-blue-50/50"><GripVertical size={16} className="text-slate-300" /><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><Dumbbell size={19} /></div><div className="min-w-0 flex-1"><div className="font-semibold">{item.exercise?.name}</div><div className="mt-1 text-xs text-slate-400">{item.exercise?.primaryMuscle ?? "力量训练"} · 休息 {item.restSeconds} 秒</div></div><div className="text-right"><div className="font-semibold text-blue-600">{item.targetSets} × {item.repMin}–{item.repMax}</div><ChevronRight size={17} className="ml-auto mt-1 text-slate-300" /></div></button>)}
       </div>
     </section>
